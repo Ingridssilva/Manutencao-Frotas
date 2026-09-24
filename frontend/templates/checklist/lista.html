@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Checklists{% endblock %}
+{% block page_title %}Checklists Pré-Operação{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('checklist.novo') }}" class="btn btn-primary btn-sm">+ Novo Checklist</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+      <div class="form-group" style="min-width:180px; margin:0;">
+        <label>Veículo</label>
+        <div class="ss-wrap" data-catalog="veiculosFiltroChk" data-hidden-name="veiculo_id" data-submit="true"
+             {% if veiculo_id %}data-selected="{{ veiculo_id }}"{% endif %}
+             data-placeholder="Todos"></div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if checklists.items %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th><th>Veículo</th><th>Motorista</th><th>Turno</th>
+            <th>KM</th><th>Status</th><th>Realizado por</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for chk in checklists.items %}
+          <tr>
+            <td style="font-size:13px;">{{ chk.data_checklist.strftime('%d/%m/%Y') }}</td>
+            <td>
+              <a href="{{ url_for('veiculos.detalhe', id=chk.veiculo_id) }}" style="font-weight:600; color:var(--laranja); text-decoration:none; font-family:var(--mono);">{{ chk.veiculo.placa }}</a>
+            </td>
+            <td style="font-size:13px;">{{ chk.motorista.nome if chk.motorista else '—' }}</td>
+            <td style="font-size:12px; color:var(--cinza-500);">{{ chk.turno }}</td>
+            <td style="font-size:13px; font-family:var(--mono);">{{ '{:,}'.format(chk.km_atual).replace(',','.') if chk.km_atual else '—' }}</td>
+            <td>
+              {% if chk.status_geral == 'aprovado' %}
+                <span class="badge badge-verde">Aprovado</span>
+              {% elif chk.status_geral == 'aprovado_com_ressalvas' %}
+                <span class="badge badge-laranja">Com ressalvas</span>
+              {% else %}
+                <span class="badge badge-vermelho">Reprovado</span>
+              {% endif %}
+            </td>
+            <td style="font-size:12px; color:var(--cinza-500);">{{ chk.created_at.strftime('%H:%M') }}</td>
+            <td><a href="{{ url_for('checklist.detalhe', id=chk.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if checklists.pages > 1 %}
+    <div style="display:flex; gap:8px; justify-content:center; padding:16px; border-top:1px solid var(--cinza-100);">
+      {% for p in checklists.iter_pages() %}
+        {% if p %}
+          <a href="?page={{ p }}&veiculo_id={{ veiculo_id }}"
+             class="btn btn-secondary btn-sm {% if p == checklists.page %}btn-primary{% endif %}">{{ p }}</a>
+        {% else %}
+          <span style="padding:6px 4px; color:var(--cinza-300);">…</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+      <div class="empty-state"><div class="empty-state-icon">◲</div>Nenhum checklist registrado.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosFiltroChk: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ v.placa | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

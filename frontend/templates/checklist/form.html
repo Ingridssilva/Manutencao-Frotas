@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Novo Checklist{% endblock %}
+{% block page_title %}Checklist Pré-Operação{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('checklist.lista') }}" class="btn btn-secondary btn-sm">← Lista</a>
+{% endblock %}
+{% block content %}
+<div class="card" style="max-width:780px;">
+  <div class="card-header"><span class="card-title">Registrar checklist</span></div>
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid" style="margin-bottom:20px;">
+        <div class="form-group">
+          <label>Veículo *</label>
+          <div class="ss-wrap" data-catalog="veiculosChk" data-hidden-name="veiculo_id" data-required="true"
+               {% if veiculo_sel %}data-selected="{{ veiculo_sel.id }}"{% endif %}
+               data-placeholder="Buscar por placa..."></div>
+        </div>
+        <div class="form-group">
+          <label>Motorista</label>
+          <div class="ss-wrap" data-catalog="motoristasChk" data-hidden-name="motorista_id" data-placeholder="Buscar motorista..."></div>
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" name="data_checklist" value="{{ hoje.isoformat() }}" required>
+        </div>
+        <div class="form-group">
+          <label>Turno</label>
+          <select name="turno">
+            <option value="manha">Manhã</option>
+            <option value="tarde">Tarde</option>
+            <option value="noite">Noite</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>KM atual</label>
+          <input type="number" name="km_atual" placeholder="quilometragem">
+        </div>
+      </div>
+
+      <hr class="divider">
+      <h3 style="font-size:13px;font-weight:600;color:var(--cinza-700);margin-bottom:14px;text-transform:uppercase;letter-spacing:.06em;">Itens de verificação</h3>
+
+      {% for item in itens %}
+      <div style="display:flex;align-items:flex-start;gap:14px;padding:11px 0;border-bottom:1px solid var(--cinza-50);">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:500;">{{ item.nome }}</div>
+          {% if item.obrigatorio %}<div style="font-size:11px;color:var(--vermelho);margin-top:1px;">Obrigatório</div>{% endif %}
+        </div>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:var(--verde);white-space:nowrap;">
+          <input type="radio" name="item_{{ item.id }}" value="sim" checked> Conforme
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:var(--vermelho);white-space:nowrap;">
+          <input type="radio" name="item_{{ item.id }}" value="nao"> Não conforme
+        </label>
+        <input type="text" name="obs_{{ item.id }}" placeholder="observação..." style="width:170px;font-size:12px;">
+      </div>
+      {% endfor %}
+
+      <div class="form-group" style="margin-top:18px;">
+        <label>Observações gerais</label>
+        <textarea name="observacoes" rows="2" placeholder="Observações sobre a vistoria..."></textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('checklist.lista') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Salvar checklist</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosChk: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  motoristasChk: [
+    {% for m in motoristas %}
+    {id:"{{ m.id }}", nome:{{ m.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

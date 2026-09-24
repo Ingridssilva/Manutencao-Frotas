@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Checklist #{{ chk.id }}{% endblock %}
+{% block page_title %}Checklist — {{ chk.veiculo.placa }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('checklist.novo', veiculo_id=chk.veiculo_id) }}" class="btn btn-primary btn-sm">+ Novo Checklist</a>
+  <a href="{{ url_for('checklist.lista') }}" class="btn btn-secondary btn-sm">← Lista</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Informações</span></div>
+    <div class="card-body">
+      <table style="font-size:13px; width:100%;">
+        <tr><td style="color:var(--cinza-500); padding:5px 0; width:130px;">Veículo</td>
+            <td style="font-weight:600; font-family:var(--mono);">{{ chk.veiculo.placa }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Motorista</td>
+            <td>{{ chk.motorista.nome if chk.motorista else '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Data</td>
+            <td>{{ chk.data_checklist.strftime('%d/%m/%Y') }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Turno</td>
+            <td>{{ chk.turno.title() }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">KM</td>
+            <td style="font-family:var(--mono);">{{ '{:,}'.format(chk.km_atual).replace(',','.') if chk.km_atual else '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Registrado em</td>
+            <td>{{ chk.created_at.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="text-align:center; padding:32px;">
+    {% if chk.status_geral == 'aprovado' %}
+      <div style="font-size:48px; color:var(--verde); margin-bottom:10px;">✓</div>
+      <div style="font-size:20px; font-weight:600; color:var(--verde);">Aprovado</div>
+    {% elif chk.status_geral == 'aprovado_com_ressalvas' %}
+      <div style="font-size:48px; color:var(--amarelo); margin-bottom:10px;">⚠</div>
+      <div style="font-size:20px; font-weight:600; color:var(--laranja);">Aprovado com ressalvas</div>
+    {% else %}
+      <div style="font-size:48px; color:var(--vermelho); margin-bottom:10px;">✗</div>
+      <div style="font-size:20px; font-weight:600; color:var(--vermelho);">Reprovado</div>
+    {% endif %}
+    {% if chk.observacoes %}
+      <div style="font-size:13px; color:var(--cinza-500); margin-top:16px; text-align:left; background:var(--cinza-50); border-radius:8px; padding:12px;">{{ chk.observacoes }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span class="card-title">Itens verificados</span></div>
+  <div class="card-body" style="padding:0;">
+    {% for resp in chk.respostas|sort(attribute='item.ordem') %}
+    <div style="display:flex; align-items:center; gap:14px; padding:11px 22px; border-bottom:1px solid var(--cinza-50);">
+      <div style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0;
+        background:{% if resp.conforme %}rgba(48,209,88,.12){% else %}rgba(255,69,58,.12){% endif %};
+        color:{% if resp.conforme %}var(--verde){% else %}var(--vermelho){% endif %};">
+        {{ '✓' if resp.conforme else '✗' }}
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px; font-weight:500;">{{ resp.item.nome }}</div>
+        {% if resp.observacao %}
+          <div style="font-size:11px; color:var(--cinza-500); margin-top:2px;">{{ resp.observacao }}</div>
+        {% endif %}
+      </div>
+      {% if resp.item.obrigatorio %}
+        <span style="font-size:11px; color:var(--cinza-400); font-weight:500;">OBRIG.</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
