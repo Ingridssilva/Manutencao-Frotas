@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}Ordens de Serviço{% endblock %}
+{% block page_title %}Ordens de Serviço{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('os.nova') }}" class="btn btn-primary btn-sm">+ Nova OS</a>
+  <a href="{{ url_for('os.exportar_excel') }}?{{ request.query_string.decode() }}" class="btn btn-secondary btn-sm">⬇ Excel</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.filter-panel{background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px}
+.filter-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:5px;min-width:140px;flex:1}
+.filter-group label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-tertiary)}
+.filter-active{background:var(--laranja-soft);border-color:var(--laranja-border) !important;color:var(--laranja) !important}
+.os-card-mobile{display:none}
+@media(max-width:768px){
+  .os-table-wrap{display:none}
+  .os-card-mobile{display:flex;flex-direction:column;gap:10px}
+  .os-mob-card{background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:14px 16px;text-decoration:none;display:block;transition:var(--tf)}
+  .os-mob-card:hover{border-color:var(--border-orange);transform:translateY(-1px)}
+  .filter-group{min-width:calc(50% - 6px)}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTROS AVANÇADOS -->
+<div class="filter-panel">
+  <form method="GET" id="filterForm">
+    <div class="filter-row">
+      <div class="filter-group" style="min-width:200px;flex:2;">
+        <label>Busca rápida</label>
+        <input type="text" name="q" value="{{ request.args.get('q','') }}" placeholder="Número, placa, descrição..." style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border-default);border-radius:var(--radius);font-size:13px;color:var(--text-primary);outline:none;" onchange="this.form.submit()">
+      </div>
+      <div class="filter-group">
+        <label>Veículo</label>
+        <div class="ss-wrap" data-catalog="veiculosFiltroOS" data-hidden-name="veiculo_id" data-submit="true"
+             {% if request.args.get('veiculo_id') %}data-selected="{{ request.args.get('veiculo_id') }}"{% endif %}
+             data-placeholder="Todos"></div>
+      </div>
+      <div class="filter-group">
+        <label>Status</label>
+        <select name="status" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          <option value="aberta"          {% if status=='aberta' %}selected{% endif %}>Aberta</option>
+          <option value="em_execucao"     {% if status=='em_execucao' %}selected{% endif %}>Em execução</option>
+          <option value="aguardando_peca" {% if status=='aguardando_peca' %}selected{% endif %}>Ag. peça</option>
+          <option value="concluida"       {% if status=='concluida' %}selected{% endif %}>Concluída</option>
+          <option value="cancelada"       {% if status=='cancelada' %}selected{% endif %}>Cancelada</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Manutenção</label>
+        <select name="tipo_manutencao" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          <option value="preventiva" {% if tipo_man=='preventiva' %}selected{% endif %}>Preventiva</option>
+          <option value="preditiva"  {% if tipo_man=='preditiva' %}selected{% endif %}>Preditiva</option>
+          <option value="corretiva"  {% if tipo_man=='corretiva' %}selected{% endif %}>Corretiva</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Aprovação</label>
+        <select name="aprovacao" onchange="this.form.submit()">
+          <option value="">Todas</option>
+          <option value="pendente"  {% if request.args.get('aprovacao')=='pendente' %}selected{% endif %}>Pendente</option>
+          <option value="aprovada"  {% if request.args.get('aprovacao')=='aprovada' %}selected{% endif %}>Aprovada</option>
+          <option value="rejeitada" {% if request.args.get('aprovacao')=='rejeitada' %}selected{% endif %}>Rejeitada</option>
+        </select>
+      </div>
+    </div>
+    <div class="filter-row" style="margin-top:10px;">
+      <div class="filter-group">
+        <label>Data abertura — de</label>
+        <input type="date" name="data_de" value="{{ request.args.get('data_de','') }}" onchange="this.form.submit()">
+      </div>
+      <div class="filter-group">
+        <label>Data abertura — até</label>
+        <input type="date" name="data_ate" value="{{ request.args.get('data_ate','') }}" onchange="this.form.submit()">
+      </div>
+      <div class="filter-group">
+        <label>Valor mínimo (R$)</label>
+        <input type="number" name="val_min" value="{{ request.args.get('val_min','') }}" placeholder="0,00" step="0.01" onchange="this.form.submit()">
+      </div>
+      <div class="filter-group">
+        <label>Valor máximo (R$)</label>
+        <input type="number" name="val_max" value="{{ request.args.get('val_max','') }}" placeholder="999999" step="0.01" onchange="this.form.submit()">
+      </div>
+      <div class="filter-group">
+        <label>Baixada</label>
+        <select name="baixada" onchange="this.form.submit()">
+          <option value="">Todas</option>
+          <option value="0" {% if baixada=='0' %}selected{% endif %}>Não baixadas</option>
+          <option value="1" {% if baixada=='1' %}selected{% endif %}>Baixadas</option>
+        </select>
+      </div>
+      <div style="align-self:flex-end;display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+        <a href="{{ url_for('os.lista') }}" class="btn btn-secondary btn-sm">Limpar</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- MÉTRICAS RÁPIDAS -->
+{% if os_list.total > 0 %}
+<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+  <div style="background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius);padding:10px 16px;flex:1;min-width:120px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:4px;">Total encontrado</div>
+    <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text-primary);">{{ os_list.total }}</div>
+  </div>
+  <div style="background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius);padding:10px 16px;flex:1;min-width:120px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:4px;">Custo total filtrado</div>
+    <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--laranja);">
+      R$ {{ '{:,.2f}'.format(custo_total_filtrado).replace(',','X').replace('.', ',').replace('X','.') }}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- TABELA DESKTOP -->
+<div class="card os-table-wrap">
+  <div class="card-body" style="padding:0;">
+    {% if os_list.items %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Número</th>
+            <th>Veículo</th>
+            <th>Tipo</th>
+            <th>Manutenção</th>
+            <th>Abertura</th>
+            <th>Previsão</th>
+            <th>Status</th>
+            <th>Aprovação</th>
+            <th>Custo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in os_list.items %}
+          <tr>
+            <td class="mono" style="font-weight:600;font-size:13px;">{{ o.numero }}</td>
+            <td>
+              <a href="{{ url_for('veiculos.detalhe', id=o.veiculo_id) }}" style="font-weight:600;color:var(--laranja);text-decoration:none;font-family:var(--mono);">{{ o.veiculo.placa }}</a>
+              <div style="font-size:11px;color:var(--text-tertiary);">{{ o.veiculo.descricao or o.veiculo.modelo or '' }}</div>
+            </td>
+            <td><span class="badge {% if o.tipo_os == 'interna' %}badge-azul{% else %}badge-laranja{% endif %}">{{ o.tipo_os }}</span></td>
+            <td><span class="badge {% if o.tipo_manutencao == 'corretiva' %}badge-vermelho{% elif o.tipo_manutencao == 'preventiva' %}badge-verde{% else %}badge-laranja{% endif %}">{{ o.tipo_manutencao }}</span></td>
+            <td style="font-size:13px;">{{ o.data_abertura.strftime('%d/%m/%Y') }}</td>
+            <td style="font-size:13px;color:var(--text-tertiary);">{{ o.data_prevista.strftime('%d/%m/%Y') if o.data_prevista else '—' }}</td>
+            <td>
+              {% if o.status == 'concluida' %}<span class="badge badge-verde">Concluída</span>
+              {% elif o.status == 'aberta' %}<span class="badge badge-laranja">Aberta</span>
+              {% elif o.status == 'em_execucao' %}<span class="badge badge-azul">Em execução</span>
+              {% elif o.status == 'aguardando_peca' %}<span class="badge badge-cinza">Ag. peça</span>
+              {% else %}<span class="badge badge-cinza">{{ o.status }}</span>{% endif %}
+            </td>
+            <td>
+              {% if o.aprovacao_status == 'aprovada' %}<span class="badge badge-verde">✓</span>
+              {% elif o.aprovacao_status == 'rejeitada' %}<span class="badge badge-vermelho">✗</span>
+              {% elif o.aprovacao_status == 'pendente' %}<span class="badge badge-amarelo">⏳</span>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-family:var(--mono);font-size:13px;color:{% if o.custo_total and o.custo_total > 5000 %}var(--vermelho){% elif o.custo_total and o.custo_total > 1000 %}var(--amarelo){% else %}var(--text-primary){% endif %};">
+              {% if o.custo_total %}R$ {{ '{:,.2f}'.format(o.custo_total).replace(',','X').replace('.', ',').replace('X','.')  }}{% else %}—{% endif %}
+            </td>
+            <td><a href="{{ url_for('os.detalhe', id=o.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if os_list.pages > 1 %}
+    <div class="pagination">
+      {% set args = request.args.to_dict() %}
+      {% for p in os_list.iter_pages() %}
+        {% if p %}
+          {% set _ = args.update({'page': p}) %}
+          <a href="?{{ args | urlencode }}" class="page-btn {% if p == os_list.page %}active{% endif %}">{{ p }}</a>
+        {% else %}
+          <span class="page-btn">…</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+      <div class="empty-state"><div class="empty-state-icon">◧</div><p>Nenhuma OS encontrada.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- CARDS MOBILE -->
+<div class="os-card-mobile">
+  {% for o in os_list.items %}
+  <a href="{{ url_for('os.detalhe', id=o.id) }}" class="os-mob-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span class="mono" style="font-size:13px;font-weight:700;color:var(--laranja);">{{ o.numero }}</span>
+      {% if o.status == 'concluida' %}<span class="badge badge-verde">Concluída</span>
+      {% elif o.status == 'aberta' %}<span class="badge badge-laranja">Aberta</span>
+      {% elif o.status == 'em_execucao' %}<span class="badge badge-azul">Em execução</span>
+      {% elif o.status == 'aguardando_peca' %}<span class="badge badge-cinza">Ag. peça</span>
+      {% else %}<span class="badge badge-cinza">{{ o.status }}</span>{% endif %}
+    </div>
+    <div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">{{ o.veiculo.placa }}</div>
+    <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:8px;">{{ o.veiculo.descricao or '' }} · {{ o.data_abertura.strftime('%d/%m/%Y') }}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span class="badge {% if o.tipo_manutencao == 'corretiva' %}badge-vermelho{% elif o.tipo_manutencao == 'preventiva' %}badge-verde{% else %}badge-laranja{% endif %}">{{ o.tipo_manutencao }}</span>
+      {% if o.custo_total %}<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text-primary);">R$ {{ '{:,.2f}'.format(o.custo_total).replace(',','X').replace('.', ',').replace('X','.') }}</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+
+  {% if not os_list.items %}
+  <div class="empty-state"><div class="empty-state-icon">◧</div><p>Nenhuma OS encontrada.</p></div>
+  {% endif %}
+</div>
+
+<a href="{{ url_for('os.nova') }}" class="fab" title="Nova OS">+</a>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosFiltroOS: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ v.placa | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}Autorizar OS {{ o.numero }}{% endblock %}
+{% block page_title %}Autorizar OS — {{ o.numero }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('os.detalhe', id=o.id) }}" class="btn btn-secondary btn-sm">← Voltar</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+
+  <!-- Banner de custo -->
+  <div class="card" style="margin-bottom:20px;border-top:4px solid var(--laranja);">
+    <div class="card-body" style="text-align:center;padding:28px;">
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--cinza-400);margin-bottom:8px;">
+        Custo Estimado da OS
+      </div>
+      <div style="font-size:48px;font-weight:700;color:var(--laranja);font-family:var(--mono);line-height:1;">
+        R$ {{ '{:,.2f}'.format(custo).replace(',','X').replace('.', ',').replace('X','.') }}
+      </div>
+      <div style="margin-top:12px;">
+        {% if custo >= limite %}
+          <span class="badge badge-vermelho" style="font-size:13px;padding:6px 14px;">
+            ⚠ Acima de R$ {{ '{:,.0f}'.format(limite).replace(',','.') }} — Autorização do Rafael
+          </span>
+        {% else %}
+          <span class="badge badge-laranja" style="font-size:13px;padding:6px 14px;">
+            Abaixo de R$ {{ '{:,.0f}'.format(limite).replace(',','.') }} — Autorização Pedro
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Dados da OS -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><span class="card-title">Dados da OS</span></div>
+    <div class="card-body">
+      <table style="font-size:13px;width:100%;">
+        <tr><td style="color:var(--cinza-500);padding:5px 0;width:140px;">Número</td>
+            <td class="mono" style="font-weight:700;">{{ o.numero }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Veículo</td>
+            <td><span class="mono" style="color:var(--laranja);font-weight:700;">{{ o.veiculo.placa if o.veiculo else '—' }}</span>
+                <span style="color:var(--cinza-500);"> — {{ (o.veiculo.descricao or o.veiculo.modelo or '') if o.veiculo else '' }}</span></td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Tipo</td>
+            <td>{{ (o.tipo_manutencao or '').capitalize() }} — {{ o.tipo_os or '' }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Data abertura</td>
+            <td>{{ o.data_abertura.strftime('%d/%m/%Y') if o.data_abertura else '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Data conclusão</td>
+            <td>{{ o.data_conclusao.strftime('%d/%m/%Y') if o.data_conclusao else '—' }}</td></tr>
+        {% if o.fornecedor %}
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Fornecedor</td>
+            <td>{{ o.fornecedor.razao_social }}</td></tr>
+        {% endif %}
+        {% if o.descricao_problema %}
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Descrição</td>
+            <td style="line-height:1.5;">{{ o.descricao_problema }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Itens -->
+  {% if o.itens_servico or o.itens_material %}
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><span class="card-title">Itens da OS</span></div>
+    <div class="card-body" style="padding:0;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Descrição</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr></thead>
+          <tbody>
+            {% for i in o.itens_servico %}
+            <tr>
+              <td>{{ i.descricao_display }}</td>
+              <td>{{ i.quantidade }}</td>
+              <td>R$ {{ '{:,.2f}'.format(i.valor_unitario|float).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+              <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(i.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+            </tr>
+            {% endfor %}
+            {% for i in o.itens_material %}
+            <tr>
+              <td>{{ i.descricao_display }}</td>
+              <td>{{ i.quantidade }}</td>
+              <td>R$ {{ '{:,.2f}'.format(i.valor_unitario|float).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+              <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(i.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background:var(--cinza-50);">
+              <td colspan="3" style="text-align:right;font-weight:600;padding:10px 16px;">Total:</td>
+              <td style="font-weight:700;color:var(--laranja);padding:10px 16px;">
+                R$ {{ '{:,.2f}'.format(custo).replace(',','X').replace('.', ',').replace('X','.') }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Ação de aprovação -->
+  {% if o.aprovacao_status in ('pendente', None) or not o.aprovacao_status %}
+  <div class="card" style="border-top:4px solid var(--laranja);">
+    <div class="card-header"><span class="card-title">Autorizar ou Recusar execução</span></div>
+    <div class="card-body">
+      <form method="POST" id="form-aprovacao">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="acao" id="campo-acao" value="">
+
+        <div class="form-group" style="margin-bottom:20px;">
+          <label>Observações (obrigatório para rejeição)</label>
+          <textarea name="obs" rows="3"
+                    placeholder="Justificativa (obrigatório para recusar)..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button type="button"
+                  class="btn btn-primary" style="flex:1;min-width:180px;font-size:15px;padding:12px 20px;"
+                  data-os="{{ o.numero }}" data-custo="{{ custo }}"
+                  onclick="
+                    var v=parseFloat(this.dataset.custo).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+                    if(confirm('Confirmar AUTORIZAÇÃO da OS ' + this.dataset.os + ' no valor de ' + v + '?')){
+                      document.getElementById('campo-acao').value='aprovar';
+                      document.getElementById('form-aprovacao').submit();
+                    }">
+            ✓ Autorizar execução
+          </button>
+          <button type="button"
+                  class="btn btn-danger" style="flex:1;min-width:180px;font-size:15px;padding:12px 20px;"
+                  onclick="
+                    if(confirm('Confirmar RECUSA da OS {{ o.numero }}? A OS será marcada como rejeitada.')){
+                      document.getElementById('campo-acao').value='rejeitar';
+                      document.getElementById('form-aprovacao').submit();
+                    }">
+            ✕ Recusar execução
+          </button>
+        </div>
+
+        <div style="margin-top:16px;padding:12px 16px;background:var(--cinza-50);border-radius:8px;font-size:12px;color:var(--cinza-500);">
+          Ao autorizar: o PDF De Acordo será gerado e enviado por e-mail. A equipe poderá iniciar o serviço.
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% elif o.aprovacao_status == 'aprovada' %}
+  <div class="card" style="border-top:4px solid var(--verde);">
+    <div class="card-body" style="text-align:center;padding:28px;">
+      <div style="font-size:36px;margin-bottom:8px;">✅</div>
+      <div style="font-size:18px;font-weight:700;color:#1a6e35;">OS Autorizada</div>
+      {% if o.aprovado_em %}
+      <div style="font-size:13px;color:var(--cinza-500);margin-top:4px;">
+        em {{ o.aprovado_em.strftime('%d/%m/%Y %H:%M') }}
+      </div>
+      {% endif %}
+      {% if o.motivo_rejeicao %}
+      <div style="margin-top:12px;font-size:13px;color:var(--cinza-700);">{{ o.motivo_rejeicao }}</div>
+      {% endif %}
+      <div style="margin-top:20px;">
+        <a href="{{ url_for('os.pdf_de_acordo', id=o.id) }}"
+           class="btn btn-primary" target="_blank">⬇ Download PDF De Acordo</a>
+      </div>
+    </div>
+  </div>
+
+  {% elif o.aprovacao_status == 'rejeitada' %}
+  <div class="card" style="border-top:4px solid var(--vermelho);">
+    <div class="card-body" style="text-align:center;padding:28px;">
+      <div style="font-size:36px;margin-bottom:8px;">❌</div>
+      <div style="font-size:18px;font-weight:700;color:#c0241a;">OS Recusada</div>
+      {% if o.motivo_rejeicao %}
+      <div style="margin-top:12px;font-size:14px;color:var(--cinza-700);">
+        <strong>Motivo:</strong> {{ o.motivo_rejeicao }}
+      </div>
+      {% endif %}
+      <div style="margin-top:8px;font-size:13px;color:var(--cinza-500);">
+        A OS foi recusada. O criador será notificado.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

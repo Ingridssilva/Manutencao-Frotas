@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OS {{ o.numero }} — Empresa Exemplo</title>
+<style>
+@import url('data:text/css,');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --laranja:#E07B00;
+  --cinza-escuro:#1A1A1A;
+  --cinza-medio:#555;
+  --cinza-claro:#F8F8F8;
+  --borda:#DEDEDE;
+  --verde:#1A7A3C;
+  --vermelho:#B71C1C;
+}
+
+@page{
+  size: A4 portrait;
+  margin: 12mm 14mm 14mm 14mm;
+}
+
+body{
+  font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-size: 10.5pt;
+  color: var(--cinza-escuro);
+  line-height: 1.45;
+  background: #fff;
+}
+
+/* HEADER */
+.header{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 3px solid var(--laranja);
+  margin-bottom: 14px;
+}
+.logo-marca{
+  font-size: 22pt;
+  font-weight: 800;
+  color: var(--cinza-escuro);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.logo-marca em{color: var(--laranja);font-style:normal}
+.logo-sub{font-size: 8pt;color: var(--cinza-medio);margin-top: 3px}
+.header-os{text-align: right}
+.os-numero{
+  font-size: 18pt;
+  font-weight: 800;
+  color: var(--laranja);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.02em;
+}
+.os-data{font-size: 8.5pt;color: var(--cinza-medio);margin-top: 3px}
+
+/* SECTION TITLES */
+.section-title{
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--laranja);
+  padding: 0 0 4px 0;
+  border-bottom: 1px solid var(--borda);
+  margin-bottom: 8px;
+  margin-top: 14px;
+}
+
+/* GRID DE CAMPOS */
+.info-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px 16px;
+  margin-bottom: 4px;
+}
+.info-grid-2{grid-template-columns: 1fr 1fr}
+.info-grid-4{grid-template-columns: 1fr 1fr 1fr 1fr}
+
+.field-group{display: flex;flex-direction: column;gap: 2px}
+.field-label{font-size: 7pt;font-weight: 700;color: var(--cinza-medio);text-transform: uppercase;letter-spacing: .06em}
+.field-value{font-size: 10pt;color: var(--cinza-escuro);font-weight: 500}
+.field-value.mono{font-family: 'Courier New', monospace;font-weight: 700;font-size: 11pt;color: var(--laranja)}
+.field-value.empty{color: #aaa;font-weight: 400;font-style: italic}
+
+/* STATUS BADGES */
+.badge{
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 8.5pt;
+  font-weight: 700;
+  border: 1px solid;
+}
+.badge-verde    {color: var(--verde);border-color: var(--verde);background: #E8F5E9}
+.badge-vermelho {color: var(--vermelho);border-color: var(--vermelho);background: #FFE5E5}
+.badge-laranja  {color: var(--laranja);border-color: var(--laranja);background: #FFF3E0}
+.badge-cinza    {color: var(--cinza-medio);border-color: var(--borda);background: var(--cinza-claro)}
+
+/* TABELAS */
+table{width: 100%;border-collapse: collapse;font-size: 9.5pt}
+thead tr{background: var(--cinza-escuro);color: #fff}
+th{
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+td{padding: 7px 10px;border-bottom: 1px solid var(--borda);vertical-align: middle}
+tr:last-child td{border-bottom: none}
+tr:nth-child(even) td{background: #FAFAFA}
+.td-right{text-align: right;font-family: 'Courier New', monospace;font-weight: 700}
+tfoot tr td{
+  font-weight: 700;
+  background: var(--cinza-claro);
+  border-top: 2px solid var(--borda);
+  font-size: 10pt;
+}
+
+/* TOTAIS */
+.totais-box{
+  background: var(--cinza-claro);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  page-break-inside: avoid;
+}
+.total-item{text-align: center}
+.total-label{font-size: 7.5pt;color: var(--cinza-medio);text-transform: uppercase;letter-spacing: .07em;margin-bottom: 3px}
+.total-valor{font-size: 12pt;font-weight: 800;font-family: 'Courier New', monospace;color: var(--cinza-escuro)}
+.total-valor.grand{font-size: 15pt;color: var(--laranja)}
+
+/* OBSERVAÇÕES */
+.obs-box{
+  background: var(--cinza-claro);
+  border: 1px solid var(--borda);
+  border-left: 3px solid var(--laranja);
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 9.5pt;
+  line-height: 1.6;
+  color: var(--cinza-escuro);
+}
+
+/* ASSINATURAS */
+.assinaturas{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-top: 24px;
+  page-break-inside: avoid;
+}
+.assinatura-bloco{text-align: center}
+.assinatura-linha{
+  border-bottom: 1px solid var(--cinza-escuro);
+  margin-bottom: 6px;
+  height: 36px;
+}
+.assinatura-label{font-size: 8pt;color: var(--cinza-medio);font-weight: 600}
+.assinatura-nome{font-size: 8.5pt;color: var(--cinza-escuro);margin-top: 2px}
+
+/* FOOTER */
+.footer{
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 1px solid var(--borda);
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt;
+  color: var(--cinza-medio);
+}
+
+/* PRINT */
+@media print{
+  .no-print{display: none !important}
+  body{-webkit-print-color-adjust: exact;print-color-adjust: exact}
+  .page-break{page-break-before: always}
+}
+
+/* BOTÃO IMPRIMIR (não aparece no PDF) */
+.btn-print{
+  position: fixed;
+  top: 16px;right: 16px;
+  background: var(--laranja);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 100;
+}
+.btn-print:hover{background: #C06A00}
+</style>
+</head>
+<body>
+
+<!-- BOTÃO IMPRIMIR -->
+<button class="btn-print no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="logo-marca">Empresa <em>Exemplo</em></div>
+    <div class="logo-sub">Sistema de Gestão de Frotas</div>
+  </div>
+  <div class="header-os">
+    <div class="os-numero">{{ o.numero }}</div>
+    <div class="os-data">
+      Emitida em {{ o.data_abertura.strftime('%d/%m/%Y') if o.data_abertura else '—' }}
+      {% if o.data_conclusao %} · Concluída em {{ o.data_conclusao.strftime('%d/%m/%Y') }}{% endif %}
+    </div>
+    <div style="margin-top:4px;">
+      {% if o.status == 'concluida' %}<span class="badge badge-verde">✓ Concluída</span>
+      {% elif o.status == 'aberta' %}<span class="badge badge-laranja">Aberta</span>
+      {% elif o.status == 'em_execucao' %}<span class="badge badge-laranja">Em Execução</span>
+      {% elif o.status == 'aguardando_peca' %}<span class="badge badge-cinza">Ag. Peça</span>
+      {% elif o.status == 'cancelada' %}<span class="badge badge-vermelho">Cancelada</span>
+      {% endif %}
+      {% if o.aprovacao_status == 'aprovada' %}
+        <span class="badge badge-verde" style="margin-left:6px;">✓ Aprovada</span>
+      {% elif o.aprovacao_status == 'pendente' %}
+        <span class="badge badge-laranja" style="margin-left:6px;">Pend. Aprovação</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- DADOS DO VEÍCULO E OS -->
+<div class="section-title">Identificação</div>
+<div class="info-grid info-grid-4">
+  <div class="field-group">
+    <div class="field-label">Placa</div>
+    <div class="field-value mono">{{ o.veiculo.placa if o.veiculo else '—' }}</div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">Veículo</div>
+    <div class="field-value">{{ o.veiculo.descricao or o.veiculo.modelo or '—' if o.veiculo else '—' }}</div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">Tipo de OS</div>
+    <div class="field-value">{{ o.tipo_os.capitalize() if o.tipo_os else '—' }}</div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">Tipo de manutenção</div>
+    <div class="field-value">
+      {% if o.tipo_manutencao == 'preventiva' %}<span class="badge badge-verde">Preventiva</span>
+      {% elif o.tipo_manutencao == 'corretiva' %}<span class="badge badge-vermelho">Corretiva</span>
+      {% elif o.tipo_manutencao == 'preditiva' %}<span class="badge badge-laranja">Preditiva</span>
+      {% else %}{{ o.tipo_manutencao or '—' }}{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="info-grid" style="margin-top:8px;">
+  <div class="field-group">
+    <div class="field-label">Motorista</div>
+    <div class="field-value">{{ o.motorista.nome if o.motorista else '—' }}</div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">Fornecedor</div>
+    <div class="field-value">{{ o.fornecedor.razao_social if o.fornecedor else '—' }}</div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">{% if o.veiculo and o.veiculo.tipo_veiculo in ['Trator','Retroescavadeira','PC','Escavadeira','Motoniveladora','Pá carregadeira','Compactador'] %}Horímetro abertura{% else %}KM na abertura{% endif %}</div>
+    <div class="field-value">{% if o.km_abertura %}{{ '{:,}'.format(o.km_abertura).replace(',','.') }} {% if o.veiculo and o.veiculo.tipo_veiculo in ['Trator','Retroescavadeira','PC','Escavadeira','Motoniveladora','Pá carregadeira','Compactador'] %}h{% else %}km{% endif %}{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+<!-- DESCRIÇÃO DO PROBLEMA -->
+{% if o.descricao_problema %}
+<div class="section-title">Descrição do Problema / Serviço</div>
+<div class="obs-box">{{ o.descricao_problema }}</div>
+{% endif %}
+
+<!-- SERVIÇOS -->
+{% if o.itens_servico %}
+<div class="section-title">Serviços Executados</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:40%;">Serviço</th>
+      <th>Executado por</th>
+      <th style="text-align:right;">Qtd</th>
+      <th style="text-align:right;">Valor unit.</th>
+      <th style="text-align:right;">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in o.itens_servico %}
+    <tr>
+      <td>{{ s.descricao or (s.catalogo.nome if s.catalogo else '—') }}</td>
+      <td style="font-size:9pt;color:#555;">{{ s.executado_por or '—' }}</td>
+      <td class="td-right">{{ s.quantidade }}</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(s.valor_unitario or 0).replace(',','X').replace('.',',').replace('X','.') }}</td>
+      <td class="td-right" style="color:var(--cinza-escuro);">R$ {{ '{:,.2f}'.format(s.valor_total or 0).replace(',','X').replace('.',',').replace('X','.') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="4" style="text-align:right;font-size:8.5pt;">Subtotal serviços:</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(o.itens_servico|sum(attribute='valor_total')).replace(',','X').replace('.',',').replace('X','.') }}</td>
+    </tr>
+  </tfoot>
+</table>
+{% endif %}
+
+<!-- PEÇAS -->
+{% if o.itens_material %}
+<div class="section-title">Peças</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:40%;">Peça</th>
+      <th>Unidade</th>
+      <th style="text-align:right;">Qtd</th>
+      <th style="text-align:right;">Valor unit.</th>
+      <th style="text-align:right;">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in o.itens_material %}
+    <tr>
+      <td>{{ m.descricao or (m.catalogo.nome if m.catalogo else '—') }}</td>
+      <td style="font-size:9pt;color:#555;">{{ m.unidade or '—' }}</td>
+      <td class="td-right">{{ m.quantidade }}</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(m.valor_unitario or 0).replace(',','X').replace('.',',').replace('X','.') }}</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(m.valor_total or 0).replace(',','X').replace('.',',').replace('X','.') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="4" style="text-align:right;font-size:8.5pt;">Subtotal peças:</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(o.itens_material|sum(attribute='valor_total')).replace(',','X').replace('.',',').replace('X','.') }}</td>
+    </tr>
+  </tfoot>
+</table>
+{% endif %}
+
+<!-- IMPLEMENTOS -->
+{% if o.itens_implemento %}
+<div class="section-title">Implementos</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:40%;">Implemento</th>
+      <th>Nº série</th>
+      <th style="text-align:right;">Qtd</th>
+      <th style="text-align:right;">Valor unit.</th>
+      <th style="text-align:right;">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in o.itens_implemento %}
+    <tr>
+      <td>{{ i.descricao or (i.catalogo.nome if i.catalogo else '—') }}</td>
+      <td style="font-size:9pt;color:#555;font-family:'Courier New',monospace;">{{ i.numero_serie or '—' }}</td>
+      <td class="td-right">{{ i.quantidade }}</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(i.valor_unitario or 0).replace(',','X').replace('.',',').replace('X','.') }}</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(i.valor_total or 0).replace(',','X').replace('.',',').replace('X','.') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="4" style="text-align:right;font-size:8.5pt;">Subtotal implementos:</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(o.itens_implemento|sum(attribute='valor_total')).replace(',','X').replace('.',',').replace('X','.') }}</td>
+    </tr>
+  </tfoot>
+</table>
+{% endif %}
+
+<!-- TOTAIS -->
+{% set total_svc = o.itens_servico|sum(attribute='valor_total') if o.itens_servico else 0 %}
+{% set total_mat = o.itens_material|sum(attribute='valor_total') if o.itens_material else 0 %}
+{% set total_imp = o.itens_implemento|sum(attribute='valor_total') if o.itens_implemento else 0 %}
+{% set total_geral = (total_svc + total_mat + total_imp) %}
+
+<div class="totais-box">
+  <div class="total-item">
+    <div class="total-label">Serviços</div>
+    <div class="total-valor">R$ {{ '{:,.2f}'.format(total_svc).replace(',','X').replace('.',',').replace('X','.') }}</div>
+  </div>
+  <div class="total-item">
+    <div class="total-label">Peças</div>
+    <div class="total-valor">R$ {{ '{:,.2f}'.format(total_mat).replace(',','X').replace('.',',').replace('X','.') }}</div>
+  </div>
+  <div class="total-item">
+    <div class="total-label">Implementos</div>
+    <div class="total-valor">R$ {{ '{:,.2f}'.format(total_imp).replace(',','X').replace('.',',').replace('X','.') }}</div>
+  </div>
+  <div class="total-item" style="border-left:2px solid var(--borda);padding-left:20px;">
+    <div class="total-label">CUSTO TOTAL</div>
+    <div class="total-valor grand">R$ {{ '{:,.2f}'.format(o.custo_total or total_geral).replace(',','X').replace('.',',').replace('X','.') }}</div>
+  </div>
+</div>
+
+<!-- OBSERVAÇÕES -->
+{% if o.observacoes %}
+<div class="section-title">Observações</div>
+<div class="obs-box">{{ o.observacoes }}</div>
+{% endif %}
+
+<!-- PAGAMENTOS -->
+{% if o.pagamentos %}
+<div class="section-title">Pagamentos</div>
+<table>
+  <thead>
+    <tr>
+      <th>NF / Nota</th>
+      <th style="text-align:right;">Valor</th>
+      <th>Vencimento</th>
+      <th>Forma</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in o.pagamentos %}
+    <tr>
+      <td style="font-family:'Courier New',monospace;">{{ p.numero_nf or '—' }}</td>
+      <td class="td-right">R$ {{ '{:,.2f}'.format(p.valor or 0).replace(',','X').replace('.',',').replace('X','.') }}</td>
+      <td>{{ p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else '—' }}</td>
+      <td>{{ p.forma_pagamento or '—' }}</td>
+      <td>{% if p.pago %}<span class="badge badge-verde">Pago</span>
+          {% else %}<span class="badge badge-cinza">Pendente</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- ASSINATURAS -->
+<div class="assinaturas">
+  <div class="assinatura-bloco">
+    <div class="assinatura-linha"></div>
+    <div class="assinatura-label">Responsável pela OS</div>
+    <div class="assinatura-nome">{{ o.criador.nome if o.criador else '___________________' }}</div>
+  </div>
+  <div class="assinatura-bloco">
+    <div class="assinatura-linha"></div>
+    <div class="assinatura-label">Fornecedor / Técnico</div>
+    <div class="assinatura-nome">{{ o.fornecedor.razao_social if o.fornecedor else '___________________' }}</div>
+  </div>
+  <div class="assinatura-bloco">
+    <div class="assinatura-linha"></div>
+    <div class="assinatura-label">Aprovação</div>
+    <div class="assinatura-nome">
+      {% if o.aprovado_por %}{{ o.aprovado_por }}
+      {% elif o.aprovacao_status == 'aprovada' %}Aprovado
+      {% else %}___________________{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div>Empresa Exemplo — Sistema de Gestão de Frotas · seu-app.onrender.com</div>
+  <div>Impresso em {{ agora }} · {{ o.numero }}</div>
+</div>
+
+<script>
+// Auto-print se vier com ?print=1
+if(new URLSearchParams(location.search).get('print') === '1') {
+  window.addEventListener('load', () => setTimeout(() => window.print(), 500));
+}
+</script>
+
+</body>
+</html>

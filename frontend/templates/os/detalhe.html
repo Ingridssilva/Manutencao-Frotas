@@ -1,0 +1,809 @@
+{% extends 'base.html' %}
+{% block title %}{{ o.numero }}{% endblock %}
+{% block page_title %}{{ o.numero }}{% endblock %}
+
+{% block topbar_actions %}
+  {# ── Aprovação ── #}
+  {% set eh_aprovador = current_user.email.lower() in ['owner@empresaexemplo.com.br','gestor1@empresaexemplo.com.br','gestor2@empresaexemplo.com.br'] %}
+  {% set eh_admin = current_user.perfil and current_user.perfil.nome in ('admin', 'gestor') %}
+  {% if (o.aprovacao_status == 'pendente' or not o.aprovacao_status) and (eh_aprovador or eh_admin) %}
+    <a href="{{ url_for('os.aprovar_form', id=o.id) }}" class="btn btn-primary btn-sm">✓ Aprovar OS</a>
+  {% endif %}
+  <a href="{{ url_for('os.pdf_de_acordo', id=o.id) }}" class="btn btn-secondary btn-sm" target="_blank">📄 De Acordo</a>
+  <a href="{{ url_for('os.imprimir', id=o.id) }}" class="btn btn-secondary btn-sm" target="_blank">🖨 Imprimir</a>
+
+  {# ── Baixa ── #}
+  {% if o.status == 'concluida' and o.aprovacao_status == 'aprovada' %}
+    {% if not o.baixada %}
+      <form method="POST" action="{{ url_for('os.baixar', id=o.id) }}" style="display:inline;"
+            onsubmit="return confirm('Confirmar baixa desta OS?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-secondary btn-sm">⬇ Dar Baixa</button>
+      </form>
+    {% else %}
+      <span class="badge badge-verde" style="padding:6px 12px;font-size:12px;">Baixada ✓</span>
+    {% endif %}
+  {% endif %}
+
+  {# ── Mover Status ── #}
+  {% if o.status not in ('concluida','cancelada') %}
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+
+      {# Botão: Aberta #}
+      {% if o.status != 'aberta' %}
+      <form method="POST" action="{{ url_for('os.mover_status', id=o.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="status" value="aberta">
+        <button type="submit" class="btn btn-sm"
+          style="background:var(--azul-soft);color:var(--azul);border:1px solid var(--azul-border);">
+          🔵 Recepção
+        </button>
+      </form>
+      {% endif %}
+
+      {# Botão: Em Manutenção #}
+      {% if o.status != 'em_execucao' %}
+      <form method="POST" action="{{ url_for('os.mover_status', id=o.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="status" value="em_execucao">
+        <button type="submit" class="btn btn-sm"
+          style="background:var(--laranja-soft);color:var(--laranja);border:1px solid var(--laranja-border);">
+          🔧 Em Manutenção
+        </button>
+      </form>
+      {% endif %}
+
+      {# Botão: Aguardando Peça #}
+      {% if o.status != 'aguardando_peca' %}
+      <form method="POST" action="{{ url_for('os.mover_status', id=o.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="status" value="aguardando_peca">
+        <button type="submit" class="btn btn-sm"
+          style="background:var(--roxo-soft);color:var(--roxo);border:1px solid var(--roxo-border);">
+          ⏳ Ag. Peça
+        </button>
+      </form>
+      {% endif %}
+
+      {# Botão: Concluir #}
+      <button onclick="document.getElementById('modal-concluir').style.display='flex'"
+              class="btn btn-sm" style="background:var(--verde-soft);color:var(--verde);border:1px solid var(--verde-border);">
+        ✅ Concluir
+      </button>
+    </div>
+  {% endif %}
+  {# ── Comprar Peça (cria orçamento vinculado à OS) ── #}
+  {% if o.status in ('aguardando_peca', 'em_execucao', 'aberta') %}
+  <a href="{{ url_for('orcamentos.novo_da_os', os_id=o.id) }}"
+     class="btn btn-sm"
+     style="background:var(--laranja);color:#fff;border:none;">
+    🛒 Comprar peça
+  </a>
+  {% endif %}
+  <a href="{{ url_for('veiculos.detalhe', id=o.veiculo_id) }}" class="btn btn-secondary btn-sm">← Veículo</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── Banner de status de aprovação ── #}
+{% if o.aprovacao_status in ('pendente', 'aprovada', 'rejeitada') or not o.aprovacao_status %}
+<div style="margin-bottom:20px;">
+  {% if o.aprovacao_status == 'pendente' or not o.aprovacao_status %}
+    <div style="padding:12px 18px;background:#FFFAEB;border:1px solid #FDEBC3;border-radius:10px;
+                display:flex;align-items:center;gap:12px;font-size:13px;color:#92570a;">
+      ⏳ <strong>Aguardando autorização</strong> —
+      {% set custo = (o.itens_servico|sum(attribute='valor_total') + o.itens_material|sum(attribute='valor_total') + o.itens_implemento|sum(attribute='valor_total')) %}
+      {% if custo >= 1000 %}
+        A diretoria deve autorizar (custo estimado acima de R$ 1.000)
+      {% else %}
+        O gestor de frotas deve autorizar (custo estimado abaixo de R$ 1.000)
+      {% endif %}
+    </div>
+  {% elif o.aprovacao_status == 'aprovada' %}
+    <div style="padding:12px 18px;background:#E8F9EE;border:1px solid #B7EDD0;border-radius:10px;
+                display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;">
+      <span style="color:#1a6e35;">✅ <strong>OS Autorizada</strong>
+        {% if o.aprovado_em %} em {{ o.aprovado_em.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+      </span>
+      <a href="{{ url_for('os.pdf_de_acordo', id=o.id) }}" target="_blank"
+         class="btn btn-secondary btn-sm" style="font-size:12px;">📄 PDF De Acordo</a>
+    </div>
+  {% elif o.aprovacao_status == 'rejeitada' %}
+    <div style="padding:12px 18px;background:#FFF1F0;border:1px solid #FFD7D5;border-radius:10px;
+                font-size:13px;color:#c0241a;">
+      ❌ <strong>OS Rejeitada</strong>
+      {% if o.motivo_rejeicao %} — {{ o.motivo_rejeicao }}{% endif %}
+      <br><small>A OS foi reaberta para correção.</small>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ── Banner de baixa ── #}
+{% if o.baixada %}
+<div style="margin-bottom:20px;padding:10px 18px;background:var(--cinza-50);border:1px solid var(--cinza-100);
+            border-radius:10px;font-size:13px;color:var(--cinza-500);display:flex;align-items:center;gap:10px;">
+  ⬇ <strong>OS Baixada</strong>
+  {% if o.baixada_em %} em {{ o.baixada_em.strftime('%d/%m/%Y') }}{% endif %}
+  <form method="POST" action="{{ url_for('os.desbaixar', id=o.id) }}" style="margin-left:auto;"
+        onsubmit="return confirm('Desfazer baixa?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-secondary btn-sm" style="font-size:11px;">Desfazer baixa</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="grid-2" style="margin-bottom:20px;">
+
+  <!-- CABEÇALHO OS -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Informações da OS</span></div>
+    <div class="card-body">
+      <table style="font-size:13px;width:100%;">
+        <tr><td style="color:var(--cinza-500);padding:5px 0;width:130px;">Número</td>
+            <td class="mono" style="font-weight:700;font-size:15px;">{{ o.numero }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Veículo</td>
+            <td>
+              <a href="{{ url_for('veiculos.detalhe', id=o.veiculo_id) }}"
+                 style="color:var(--laranja);font-weight:600;text-decoration:none;">{{ o.veiculo.placa }}</a>
+              — {{ o.veiculo.descricao or o.veiculo.modelo }}
+            </td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Tipo OS</td>
+            <td><span class="badge {% if o.tipo_os == 'interna' %}badge-azul{% else %}badge-laranja{% endif %}">{{ o.tipo_os }}</span></td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Manutenção</td>
+            <td><span class="badge {% if o.tipo_manutencao == 'corretiva' %}badge-vermelho{% elif o.tipo_manutencao == 'preventiva' %}badge-verde{% else %}badge-laranja{% endif %}">{{ o.tipo_manutencao }}</span></td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Abertura</td>
+            <td>{{ o.data_abertura.strftime('%d/%m/%Y') }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Previsão</td>
+            <td>{{ o.data_prevista.strftime('%d/%m/%Y') if o.data_prevista else '—' }}</td></tr>
+        {% if o.data_conclusao %}
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Conclusão</td>
+            <td>{{ o.data_conclusao.strftime('%d/%m/%Y') }}</td></tr>
+        {% endif %}
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">
+              {% if o.veiculo and o.veiculo.tipo_veiculo in ['Trator','Retroescavadeira','PC','Escavadeira','Motoniveladora','Pá carregadeira','Compactador'] %}
+                Horímetro abertura
+              {% else %}KM abertura{% endif %}
+            </td>
+            <td>{{ '{:,}'.format(o.km_abertura).replace(',','.') if o.km_abertura else '—' }}
+              {% if o.veiculo and o.veiculo.tipo_veiculo in ['Trator','Retroescavadeira','PC','Escavadeira','Motoniveladora','Pá carregadeira','Compactador'] %}h{% else %}km{% endif %}
+            </td></tr>
+        {% if o.tipo_os == 'externa' %}
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Fornecedor</td>
+            <td>{{ o.fornecedor.razao_social if o.fornecedor else '—' }}</td></tr>
+        {% else %}
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Responsável</td>
+            <td>{{ o.responsavel.nome if o.responsavel else '—' }}</td></tr>
+        {% endif %}
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Status</td>
+            <td>
+              {% if o.status == 'concluida' %}<span class="badge badge-verde">Concluída</span>
+              {% elif o.status == 'aberta' %}<span class="badge badge-laranja">Aberta</span>
+              {% elif o.status == 'em_execucao' %}<span class="badge badge-azul">Em execução</span>
+              {% elif o.status == 'aguardando_peca' %}<span class="badge badge-cinza">Ag. peça</span>
+              {% else %}<span class="badge badge-cinza">{{ o.status }}</span>{% endif %}
+            </td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Aprovação</td>
+            <td>
+              {% if o.aprovacao_status == 'aprovada' %}
+                <span class="badge badge-verde">Aprovada ✓</span>
+              {% elif o.aprovacao_status == 'rejeitada' %}
+                <span class="badge badge-vermelho">Rejeitada</span>
+              {% elif o.aprovacao_status == 'pendente' %}
+                <span class="badge badge-laranja">Pendente</span>
+              {% else %}—{% endif %}
+            </td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Baixada</td>
+            <td>
+              {% if o.baixada %}
+                <span class="badge badge-verde">Sim</span>
+                {% if o.baixada_em %}
+                  <span style="font-size:11px;color:var(--cinza-400);"> {{ o.baixada_em.strftime('%d/%m/%Y') }}</span>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-cinza">Não</span>
+              {% endif %}
+            </td></tr>
+      </table>
+      {% if o.descricao_problema %}
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--cinza-50);">
+        <div style="font-size:11px;font-weight:600;color:var(--cinza-400);margin-bottom:4px;
+                    text-transform:uppercase;letter-spacing:.06em;">Problema relatado</div>
+        <div style="font-size:13px;color:var(--cinza-700);line-height:1.5;">{{ o.descricao_problema }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- CUSTO RESUMO -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card" style="text-align:center;padding:28px;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+                  color:var(--cinza-500);margin-bottom:8px;">Custo total</div>
+      {% set total_svc = o.itens_servico|sum(attribute='valor_total') %}
+      {% set total_mat = o.itens_material|sum(attribute='valor_total') %}
+      {% set total_imp = o.itens_implemento|sum(attribute='valor_total') %}
+      {% set total = total_svc + total_mat + total_imp %}
+      <div style="font-size:36px;font-weight:600;color:var(--grafite);font-family:var(--mono);letter-spacing:-.02em;">
+        R$ {{ '{:,.2f}'.format(total).replace(',','X').replace('.', ',').replace('X','.') }}
+      </div>
+      <div style="display:flex;gap:24px;justify-content:center;margin-top:16px;font-size:13px;">
+        <div>
+          <div style="color:var(--cinza-400);">Serviços</div>
+          <div style="font-weight:600;">R$ {{ '{:,.2f}'.format(total_svc).replace(',','X').replace('.', ',').replace('X','.') }}</div>
+        </div>
+        <div>
+          <div style="color:var(--cinza-400);">Peças</div>
+          <div style="font-weight:600;">R$ {{ '{:,.2f}'.format(total_mat).replace(',','X').replace('.', ',').replace('X','.') }}</div>
+        </div>
+        <div>
+          <div style="color:var(--cinza-400);">Implementos</div>
+          <div style="font-weight:600;">R$ {{ '{:,.2f}'.format(total_imp).replace(',','X').replace('.', ',').replace('X','.') }}</div>
+        </div>
+      </div>
+      {% if total >= 1000 %}
+        <div style="margin-top:12px;font-size:11px;color:var(--vermelho);font-weight:600;">
+          ⚠ Acima de R$ 1.000 — aprovação do Rafael
+        </div>
+      {% else %}
+        <div style="margin-top:12px;font-size:11px;color:var(--cinza-400);">
+          Abaixo de R$ 1.000 — aprovação Pedro
+        </div>
+      {% endif %}
+    </div>
+
+    {% if o.orcamento or orcamentos_da_os %}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Compras vinculadas a esta OS</span>
+        <a href="{{ url_for('orcamentos.novo_da_os', os_id=o.id) }}" class="btn btn-primary btn-sm">🛒 + Comprar peça</a>
+      </div>
+      <div class="card-body" style="padding:0;">
+        {% set todos_orcs = (orcamentos_da_os or []) %}
+        {% if o.orcamento and o.orcamento not in todos_orcs %}{% set todos_orcs = todos_orcs + [o.orcamento] %}{% endif %}
+        {% if todos_orcs %}
+        <table>
+          <thead><tr><th>Orçamento</th><th>Tipo</th><th>Status</th><th>OC gerada</th><th></th></tr></thead>
+          <tbody>
+            {% for orc in todos_orcs %}
+            <tr>
+              <td class="mono" style="font-weight:600;">{{ orc.numero }}</td>
+              <td style="font-size:12px;">{{ orc.descricao[:40] }}</td>
+              <td>
+                {% if orc.status in ('em_elaboracao','rascunho') %}<span class="badge badge-cinza">Em elaboração</span>
+                {% elif orc.status == 'aguardando_cotacao' %}<span class="badge badge-laranja">Ag. cotação</span>
+                {% elif orc.status == 'em_aprovacao' %}<span class="badge badge-laranja">Em aprovação</span>
+                {% elif orc.status == 'aprovado' %}<span class="badge badge-verde">Aprovado</span>
+                {% else %}<span class="badge badge-cinza">{{ orc.status }}</span>{% endif %}
+              </td>
+              <td>
+                {% set oc_orc = orc.ordens_compra[0] if orc.ordens_compra else none %}
+                {% if oc_orc %}
+                <a href="{{ url_for('orcamentos.detalhe_oc', oc_id=oc_orc.id) }}" style="font-weight:600; font-family:var(--mono); color:var(--azul, #2980b9); text-decoration:none;">{{ oc_orc.numero }}</a>
+                <span class="badge badge-azul" style="margin-left:4px; font-size:10px;">{{ oc_orc.status_label }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td><a href="{{ url_for('orcamentos.detalhe', id=orc.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div style="padding:16px 20px; font-size:13px; color:var(--cinza-400);">
+          Nenhuma compra vinculada ainda.
+          <a href="{{ url_for('orcamentos.novo_da_os', os_id=o.id) }}" style="color:var(--laranja); font-weight:600; text-decoration:none; margin-left:6px;">+ Criar orçamento de peça</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card" style="border:1px dashed var(--cinza-200);">
+      <div class="card-body" style="text-align:center; padding:20px;">
+        <div style="font-size:13px; color:var(--cinza-400); margin-bottom:10px;">Nenhuma compra vinculada a esta OS</div>
+        <a href="{{ url_for('orcamentos.novo_da_os', os_id=o.id) }}" class="btn btn-primary btn-sm">🛒 Comprar peça para esta OS</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ITENS SERVIÇO -->
+{% set pode_editar_itens = o.status not in ('concluida', 'cancelada') %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <span class="card-title">Serviços executados</span>
+    {% if pode_editar_itens %}
+    <button onclick="document.getElementById('modal-add-servico').style.display='flex'"
+            class="btn btn-primary btn-sm">+ Adicionar serviço</button>
+    {% endif %}
+  </div>
+  <div class="card-body" style="padding:0;">
+    {% if o.itens_servico %}
+    <table>
+      <thead><tr><th>Serviço</th><th>Executado por</th><th>Qtd</th><th>Valor unit.</th><th>Total</th>{% if pode_editar_itens %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for i in o.itens_servico %}
+        <tr>
+          <td>{{ i.servico.nome if i.servico else i.descricao_livre or '—' }}</td>
+          <td style="color:var(--cinza-500);">{{ i.executado_por or '—' }}</td>
+          <td>{{ i.quantidade }}</td>
+          <td>R$ {{ '{:,.2f}'.format(i.valor_unitario).replace(',','X').replace('.', ',').replace('X','.') if i.valor_unitario else '—' }}</td>
+          <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(i.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          {% if pode_editar_itens %}
+          <td>
+            <form method="POST" action="{{ url_for('os.remover_servico', id=o.id, item_id=i.id) }}"
+                  onsubmit="return confirm('Remover este serviço?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="color:var(--vermelho);font-size:11px;padding:3px 8px;">✕</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:16px 20px;font-size:13px;color:var(--cinza-400);">
+      Nenhum serviço registrado ainda.
+      {% if pode_editar_itens %}
+      <button onclick="document.getElementById('modal-add-servico').style.display='flex'"
+              style="background:none;border:none;color:var(--laranja);font-weight:600;cursor:pointer;margin-left:6px;">
+        + Adicionar
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ITENS PEÇAS -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <span class="card-title">Peças utilizadas</span>
+    {% if pode_editar_itens %}
+    <button onclick="document.getElementById('modal-add-material').style.display='flex'"
+            class="btn btn-primary btn-sm">+ Adicionar peça</button>
+    {% endif %}
+  </div>
+  <div class="card-body" style="padding:0;">
+    {% if o.itens_material %}
+    <table>
+      <thead><tr><th>Peça</th><th>Unidade</th><th>Qtd</th><th>Valor unit.</th><th>Total</th>{% if pode_editar_itens %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for i in o.itens_material %}
+        <tr>
+          <td>{{ i.material.nome if i.material else i.descricao_livre or '—' }}</td>
+          <td style="color:var(--cinza-500);">{{ i.material.unidade if i.material else '—' }}</td>
+          <td>{{ i.quantidade }}</td>
+          <td>R$ {{ '{:,.2f}'.format(i.valor_unitario).replace(',','X').replace('.', ',').replace('X','.') if i.valor_unitario else '—' }}</td>
+          <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(i.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          {% if pode_editar_itens %}
+          <td>
+            <form method="POST" action="{{ url_for('os.remover_material', id=o.id, item_id=i.id) }}"
+                  onsubmit="return confirm('Remover esta peça?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="color:var(--vermelho);font-size:11px;padding:3px 8px;">✕</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:16px 20px;font-size:13px;color:var(--cinza-400);">
+      Nenhuma peça registrada ainda.
+      {% if pode_editar_itens %}
+      <button onclick="document.getElementById('modal-add-material').style.display='flex'"
+              style="background:none;border:none;color:var(--laranja);font-weight:600;cursor:pointer;margin-left:6px;">
+        + Adicionar
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ITENS IMPLEMENTO -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <span class="card-title">Implementos</span>
+    {% if pode_editar_itens %}
+    <button onclick="document.getElementById('modal-add-implemento').style.display='flex'"
+            class="btn btn-primary btn-sm">+ Adicionar implemento</button>
+    {% endif %}
+  </div>
+  <div class="card-body" style="padding:0;">
+    {% if o.itens_implemento %}
+    <table>
+      <thead><tr><th>Implemento</th><th>Nº Série</th><th>Qtd</th><th>Valor unit.</th><th>Total</th>{% if pode_editar_itens %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for i in o.itens_implemento %}
+        <tr>
+          <td>{{ i.implemento.nome if i.implemento else i.descricao_livre or '—' }}</td>
+          <td style="color:var(--cinza-500);">{{ i.numero_serie or '—' }}</td>
+          <td>{{ i.quantidade }}</td>
+          <td>R$ {{ '{:,.2f}'.format(i.valor_unitario).replace(',','X').replace('.', ',').replace('X','.') if i.valor_unitario else '—' }}</td>
+          <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(i.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          {% if pode_editar_itens %}
+          <td>
+            <form method="POST" action="{{ url_for('os.remover_implemento', id=o.id, item_id=i.id) }}"
+                  onsubmit="return confirm('Remover este implemento?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="color:var(--vermelho);font-size:11px;padding:3px 8px;">✕</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:16px 20px;font-size:13px;color:var(--cinza-400);">
+      Nenhum implemento registrado ainda.
+      {% if pode_editar_itens %}
+      <button onclick="document.getElementById('modal-add-implemento').style.display='flex'"
+              style="background:none;border:none;color:var(--laranja);font-weight:600;cursor:pointer;margin-left:6px;">
+        + Adicionar
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- FOTOS -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <span class="card-title">
+      📷 Fotos e Documentos
+      <span id="fotoContador" style="background:var(--laranja);color:#fff;font-size:11px;
+            padding:2px 8px;border-radius:12px;margin-left:6px;vertical-align:middle;">0</span>
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="upload-zone" id="uploadZone" data-os-id="{{ o.id }}">
+      <input type="file" id="fotoInput" accept="image/*,application/pdf,.heic,.heif"
+             multiple capture="environment">
+      <div class="upload-zone-icon">📎</div>
+      <div class="upload-zone-text"><strong>Arraste arquivos aqui</strong> ou toque para selecionar</div>
+      <div class="upload-zone-hint">📸 Câmera · 🖼 Galeria · 📄 PDF · Máx 10 MB</div>
+    </div>
+    <div class="fotos-grid" id="fotosGrid" style="margin-top:16px;">
+      <div style="grid-column:1/-1;text-align:center;color:var(--cinza-400);font-size:13px;padding:20px 0;">
+        Carregando fotos...
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGAMENTOS -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header"><span class="card-title">Parcelas de pagamento</span></div>
+  <div class="card-body" style="padding:0;">
+    {% if o.pagamentos %}
+    <table>
+      <thead><tr><th>NF</th><th>Valor</th><th>Vencimento</th><th>Forma</th><th>Status</th><th>Pagamento</th><th></th></tr></thead>
+      <tbody>
+        {% for p in o.pagamentos %}
+        <tr>
+          <td class="mono text-small">{{ p.numero_nf or '—' }}</td>
+          <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(p.valor).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          <td style="color:{% if p.status == 'pendente' and p.data_vencimento < hoje %}var(--vermelho){% else %}var(--grafite){% endif %}">
+            {{ p.data_vencimento.strftime('%d/%m/%Y') }}
+          </td>
+          <td style="color:var(--cinza-400);">{{ p.forma_pagamento or '—' }}</td>
+          <td>
+            {% if p.status == 'pago' %}<span class="badge badge-verde">Pago</span>
+            {% elif p.status == 'atrasado' %}<span class="badge badge-vermelho">Atrasado</span>
+            {% else %}<span class="badge badge-laranja">Pendente</span>{% endif %}
+          </td>
+          <td style="font-size:13px;color:var(--cinza-400);">{{ p.data_pagamento.strftime('%d/%m/%Y') if p.data_pagamento else '—' }}</td>
+          <td>
+            {% if p.status != 'pago' %}
+            <form method="POST" action="{{ url_for('os.marcar_pago', id=o.id, pag_id=p.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="background:#E8F9EE;color:#1a6e35;border-color:#B7EDD0;">Quitar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state" style="padding:24px;">Nenhuma parcela cadastrada.</div>
+    {% endif %}
+  </div>
+</div>
+
+
+<!-- HISTÓRICO DE STATUS (TIMELINE) -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <span class="card-title">🕐 Histórico de Status</span>
+  </div>
+  <div class="card-body" style="padding:16px 22px;">
+    {% set logs = status_log_ordenado %}
+    {% if logs %}
+    <div style="position:relative;">
+      <div style="position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--border-default);"></div>
+      {% for log in logs %}
+      <div style="display:flex;align-items:flex-start;gap:14px;padding:0 0 20px 0;position:relative;">
+        <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;z-index:1;
+          {% if log.status_para == 'concluida' %}background:var(--verde-soft);border:2px solid var(--verde);
+          {% elif log.status_para == 'em_execucao' %}background:var(--laranja-soft);border:2px solid var(--laranja);
+          {% elif log.status_para == 'aguardando_peca' %}background:var(--roxo-soft);border:2px solid var(--roxo);
+          {% elif log.status_para == 'cancelada' %}background:var(--vermelho-soft);border:2px solid var(--vermelho);
+          {% else %}background:var(--azul-soft);border:2px solid var(--azul);{% endif %}">
+          {% if log.status_para == 'concluida' %}✅
+          {% elif log.status_para == 'em_execucao' %}🔧
+          {% elif log.status_para == 'aguardando_peca' %}⏳
+          {% elif log.status_para == 'cancelada' %}❌
+          {% else %}📋{% endif %}
+        </div>
+        <div style="flex:1;padding-top:4px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary);">
+              {% if log.status_para == 'aberta' %}OS Aberta
+              {% elif log.status_para == 'em_execucao' %}Iniciada manutenção
+              {% elif log.status_para == 'aguardando_peca' %}Aguardando peça
+              {% elif log.status_para == 'concluida' %}Concluída
+              {% elif log.status_para == 'cancelada' %}Cancelada
+              {% else %}{{ log.status_para }}{% endif %}
+            </span>
+            {% if log.status_de %}
+            <span style="font-size:11px;color:var(--text-tertiary);">← {{ log.status_de }}</span>
+            {% endif %}
+          </div>
+          <div style="font-size:12px;color:var(--text-tertiary);margin-top:3px;">
+            {% if log.created_at %}{{ log.created_at.strftime('%d/%m/%Y às %H:%M') }}{% endif %}
+            {% if log.usuario %} · {{ log.usuario.nome.split()[0] }}{% endif %}
+          </div>
+          {% if log.obs %}
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;font-style:italic;">{{ log.obs }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;color:var(--text-tertiary);font-size:13px;padding:16px 0;">
+      Histórico não disponível para OS anteriores ao sistema de log.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- MODAL ADICIONAR SERVIÇO -->
+<div id="modal-add-servico" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+     z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#1e1e2e;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.6);
+              max-width:480px;margin:20px;">
+    <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">➕ Adicionar serviço</h3>
+    {% if o.aprovacao_status == 'pendente' or not o.aprovacao_status %}
+    <div style="padding:10px 14px;background:#FFFAEB;border:1px solid #FDEBC3;border-radius:8px;
+                font-size:12px;color:#92570a;margin-bottom:16px;">
+      ⚠ A OS está aguardando aprovação. Ao adicionar um item, o e-mail de aprovação será reenviado com o novo custo.
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('os.add_servico', id=o.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Serviço do catálogo</label>
+        <div class="ss-wrap" id="svc-ss-wrap" data-catalog="servicosOS" data-hidden-name="servico_id" data-placeholder="Buscar serviço no catálogo..."></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Descrição livre (se não estiver no catálogo)</label>
+        <input type="text" name="svc_desc" id="svc-desc-input" placeholder="Ex: Troca de correia dentada"
+               style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Qtd</label>
+          <input type="number" name="svc_qty" value="1" min="0.01" step="0.01"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Valor unit. (R$)</label>
+          <input type="number" name="svc_val" value="0" min="0" step="0.01"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Executado por</label>
+          <input type="text" name="svc_exec" placeholder="Opcional"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button"
+                onclick="document.getElementById('modal-add-servico').style.display='none'"
+                class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar serviço</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL ADICIONAR PEÇA -->
+<div id="modal-add-material" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+     z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#1e1e2e;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.6);
+              max-width:480px;margin:20px;">
+    <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">➕ Adicionar peça</h3>
+    {% if o.aprovacao_status == 'pendente' or not o.aprovacao_status %}
+    <div style="padding:10px 14px;background:#FFFAEB;border:1px solid #FDEBC3;border-radius:8px;
+                font-size:12px;color:#92570a;margin-bottom:16px;">
+      ⚠ A OS está aguardando aprovação. Ao adicionar um item, o e-mail de aprovação será reenviado com o novo custo.
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('os.add_material', id=o.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Peça do catálogo</label>
+        <div class="ss-wrap" data-catalog="materiaisOS" data-hidden-name="material_id" data-placeholder="Buscar peça no catálogo..."></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Descrição livre (se não estiver no catálogo)</label>
+        <input type="text" name="mat_desc" placeholder="Ex: Filtro de óleo"
+               style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Qtd</label>
+          <input type="number" name="mat_qty" value="1" min="0.01" step="0.01"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Valor unit. (R$)</label>
+          <input type="number" name="mat_val" value="0" min="0" step="0.01"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button"
+                onclick="document.getElementById('modal-add-material').style.display='none'"
+                class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar peça</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL ADICIONAR IMPLEMENTO -->
+<div id="modal-add-implemento" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+     z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#1e1e2e;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.6);
+              max-width:480px;margin:20px;">
+    <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">➕ Adicionar implemento</h3>
+    {% if o.aprovacao_status == 'pendente' or not o.aprovacao_status %}
+    <div style="padding:10px 14px;background:#FFFAEB;border:1px solid #FDEBC3;border-radius:8px;
+                font-size:12px;color:#92570a;margin-bottom:16px;">
+      ⚠ A OS está aguardando aprovação. Ao adicionar um item, o e-mail de aprovação será reenviado com o novo custo.
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('os.add_implemento', id=o.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Implemento do catálogo</label>
+        <div class="ss-wrap" data-catalog="implementosOS" data-hidden-name="imp_id" data-placeholder="Buscar implemento no catálogo..."></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Descrição livre (se não estiver no catálogo)</label>
+        <input type="text" name="imp_desc" placeholder="Ex: Engate 3 pontos"
+               style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Qtd</label>
+          <input type="number" name="imp_qty" value="1" min="0.01" step="0.01"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Valor unit. (R$)</label>
+          <input type="number" name="imp_val" value="0" min="0" step="0.01"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;color:var(--cinza-500);">Nº de série</label>
+          <input type="text" name="imp_serie" placeholder="Opcional"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--cinza-200);border-radius:8px;font-size:13px;">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button"
+                onclick="document.getElementById('modal-add-implemento').style.display='none'"
+                class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar implemento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL CONCLUIR -->
+<div id="modal-concluir" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+     z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#1e1e2e;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.6);
+              max-width:440px;margin:20px;">
+    <h3 style="font-size:18px;font-weight:600;margin-bottom:20px;">Concluir OS {{ o.numero }}</h3>
+    <form method="POST" action="{{ url_for('os.concluir', id=o.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Data de conclusão</label>
+          <input type="date" name="data_conclusao" required>
+        </div>
+        <div class="form-group">
+          <label>KM final</label>
+          <input type="number" name="km_conclusao" placeholder="opcional"
+                 min="{{ o.km_abertura or 0 }}">
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:12px;background:var(--cinza-50);border-radius:8px;
+                  font-size:12px;color:var(--cinza-500);">
+        Ao concluir, um e-mail de aprovação será enviado automaticamente para o aprovador responsável.
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <button type="button"
+                onclick="document.getElementById('modal-concluir').style.display='none'"
+                class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Confirmar conclusão</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/mobile.js') }}" defer></script>
+<script>
+const today = new Date().toISOString().split('T')[0];
+const inp = document.querySelector('input[name="data_conclusao"]');
+if (inp) inp.value = today;
+
+// ── CATÁLOGOS (registrados no engine global de searchable-select.js) ────
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  servicosOS: {{ catalogo_servicos_json | tojson }},
+  materiaisOS: [
+    {% for m in catalogo_materiais %}
+    {id:"{{ m.id }}", nome:{{ m.nome | tojson }}{% if m.unidade %}, sub:{{ m.unidade | tojson }}{% endif %}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  implementosOS: [
+    {% for imp in catalogo_implementos %}
+    {id:"{{ imp.id }}", nome:{{ imp.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+
+// Limpa a descrição livre do serviço quando um item do catálogo é escolhido
+document.addEventListener('ss:change', e => {
+  if (e.target && e.target.id === 'svc-ss-wrap') {
+    const descInput = document.getElementById('svc-desc-input');
+    if (descInput) descInput.value = '';
+  }
+});
+
+// Reseta o campo ao reabrir o modal de serviço
+document.querySelectorAll('[onclick*="modal-add-servico"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const wrap = document.getElementById('svc-ss-wrap');
+    if (!wrap) return;
+    const hid = wrap.querySelector('input[type=hidden]');
+    const txt = wrap.querySelector('.ss-input');
+    const clr = wrap.querySelector('.ss-clear');
+    if (hid) hid.value = '';
+    if (txt) txt.value = '';
+    if (clr) clr.classList.remove('visible');
+    const desc = document.getElementById('svc-desc-input');
+    if (desc) desc.value = '';
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% block title %}Painel de OS{% endblock %}
+
+{% block extra_head %}
+<style>
+.kanban-wrap{display:flex;gap:14px;overflow-x:auto;padding-bottom:16px;align-items:flex-start;}
+.kanban-col{flex:0 0 270px;min-width:270px;background:#f4f4f2;border-radius:12px;padding:0 0 12px 0;display:flex;flex-direction:column;}
+.kanban-col-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 11px;border-radius:12px 12px 0 0;font-size:13px;font-weight:600;letter-spacing:.03em;}
+.kanban-col-header .count{font-size:12px;font-weight:500;opacity:.75;background:rgba(255,255,255,.25);border-radius:20px;padding:2px 9px;}
+.col-aberta          .kanban-col-header{background:#1e3a5f;color:#fff;}
+.col-em_execucao     .kanban-col-header{background:#e07b00;color:#fff;}
+.col-aguardando_peca .kanban-col-header{background:#7b3fa0;color:#fff;}
+.col-concluida       .kanban-col-header{background:#1a7a4a;color:#fff;}
+.col-cancelada       .kanban-col-header{background:#888;color:#fff;}
+.kanban-cards{padding:10px 10px 4px;display:flex;flex-direction:column;gap:10px;min-height:80px;}
+.kanban-cards.drag-over{background:rgba(247,147,30,.08);border-radius:8px;}
+.os-card{background:#fff;border-radius:10px;border:1px solid #e8e6df;padding:13px 14px 11px;cursor:grab;transition:box-shadow .15s,transform .1s;user-select:none;}
+.os-card:active{cursor:grabbing;}
+.os-card.dragging{opacity:.55;transform:scale(.97);box-shadow:0 8px 24px rgba(0,0,0,.13);}
+.os-card-top{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+.vehicle-icon{font-size:22px;line-height:1;}
+.os-card-titulo{flex:1;}
+.os-card-placa{font-size:13px;font-weight:700;font-family:var(--mono,monospace);color:#F7931E;}
+.os-card-modelo{font-size:11px;color:#888;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;}
+.os-card-info{font-size:11.5px;color:#555;line-height:1.65;}
+.os-card-info strong{color:#222;font-weight:600;}
+.os-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:9px;padding-top:8px;border-top:1px solid #f0ece4;}
+.os-num{font-size:10.5px;font-family:var(--mono,monospace);color:#aaa;}
+.badge-tipo{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+.badge-corretiva{background:#fde8e8;color:#b91c1c;}
+.badge-preventiva{background:#e0f2fe;color:#0369a1;}
+.badge-preditiva{background:#fef3c7;color:#92400e;}
+.os-dias{font-size:10.5px;color:#aaa;}
+.os-dias.urgente{color:#c0392b;font-weight:600;}
+.os-dias.atencao{color:#e07b00;font-weight:600;}
+.col-empty{text-align:center;font-size:12px;color:#bbb;padding:24px 12px;}
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('os.nova') }}" class="btn btn-primary btn-sm">+ Nova OS</a>
+  <a href="{{ url_for('os.lista') }}" class="btn btn-secondary btn-sm">Lista</a>
+  <button onclick="location.reload()" class="btn btn-secondary btn-sm">↺ Atualizar</button>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+  <div>
+    <h1 class="page-title" style="margin:0;">Painel de Manutenção</h1>
+    <div style="font-size:12px;color:var(--cinza-400);">Arraste os cartões para mover entre colunas · {{ hoje.strftime('%d/%m/%Y') }}</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <select id="filtro-tipo" onchange="filtrar()" style="font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid #ddd;">
+      <option value="">Todos os tipos</option>
+      <option value="corretiva">Corretiva</option>
+      <option value="preventiva">Preventiva</option>
+      <option value="preditiva">Preditiva</option>
+    </select>
+  </div>
+</div>
+
+<div class="kanban-wrap" id="kanban">
+  {% set icones = {
+    'Caminhão':'🚛','Caminhao':'🚛','4X4':'🚙','Pick-up':'🛻',
+    'Moto':'🏍','Embarcação':'⛵','Embarcacao':'⛵','Van':'🚐',
+    'Leve':'🚗','Retroescavadeira':'🚜','Trator':'🚜','Gerador':'⚡'
+  } %}
+
+  {% for status, label in colunas.items() %}
+  {% set cards = os_por_status[status] %}
+  <div class="kanban-col col-{{ status }}" data-status="{{ status }}">
+    <div class="kanban-col-header">
+      <span>{{ label }}</span>
+      <span class="count">{{ cards|length }}</span>
+    </div>
+    <div class="kanban-cards" id="col-{{ status }}"
+         ondragover="onDragOver(event)"
+         ondragleave="onDragLeave(event)"
+         ondrop="onDrop(event,'{{ status }}')">
+
+      {% if cards %}
+        {% for o in cards %}
+        {% set dias = (hoje - o.data_abertura).days %}
+        {% set icone = icones.get(o.veiculo.tipo_veiculo, '🚗') %}
+        <div class="os-card"
+             draggable="true"
+             data-id="{{ o.id }}"
+             data-tipo="{{ o.tipo_manutencao }}"
+             ondragstart="onDragStart(event)"
+             ondragend="onDragEnd(event)"
+             onclick="window.location='{{ url_for('os.detalhe', id=o.id) }}'">
+          <div class="os-card-top">
+            <div class="vehicle-icon">{{ icone }}</div>
+            <div class="os-card-titulo">
+              <div class="os-card-placa">{{ o.veiculo.placa }}</div>
+              <div class="os-card-modelo">{{ o.veiculo.descricao or o.veiculo.modelo or '—' }}</div>
+            </div>
+            <span class="badge-tipo badge-{{ o.tipo_manutencao }}">{{ o.tipo_manutencao }}</span>
+          </div>
+          <div class="os-card-info">
+            {% if o.descricao_problema %}
+            <div style="margin-bottom:4px;font-size:12px;color:#333;line-height:1.4;">
+              {{ o.descricao_problema[:80] }}{% if o.descricao_problema|length > 80 %}…{% endif %}
+            </div>
+            {% endif %}
+            {% if o.motorista %}
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
+              <span style="font-size:13px;">👤</span>
+              <span style="font-size:11.5px;color:#333;font-weight:600;">{{ o.motorista.nome }}</span>
+            </div>
+            {% endif %}
+            {% if o.fornecedor %}<div><strong>Fornecedor:</strong> {{ o.fornecedor.nome_fantasia or o.fornecedor.razao_social }}</div>{% endif %}
+            {% if o.data_prevista %}<div><strong>Prev. entrega:</strong> {{ o.data_prevista.strftime('%d/%m/%Y') }}</div>{% endif %}
+            {% if o.itens_servico %}
+            <div><strong>Serviços:</strong>
+              {% for s in o.itens_servico[:2] %}{{ s.descricao_display }}{% if not loop.last %}, {% endif %}{% endfor %}
+              {% if o.itens_servico|length > 2 %}+{{ o.itens_servico|length - 2 }}{% endif %}
+            </div>
+            {% endif %}
+          </div>
+          <div class="os-card-footer">
+            <span class="os-num">{{ o.numero }}</span>
+            <span class="os-dias {% if dias > 7 %}urgente{% elif dias > 3 %}atencao{% endif %}">
+              {% if dias == 0 %}Hoje{% elif dias == 1 %}1 dia{% else %}{{ dias }} dias{% endif %}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="col-empty">Nenhuma OS</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let dragId = null;
+
+function onDragStart(e){
+  dragId = e.currentTarget.dataset.id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnd(e){
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.kanban-cards').forEach(c=>c.classList.remove('drag-over'));
+}
+function onDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+async function onDrop(e, novoStatus){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(!dragId) return;
+  const card = document.querySelector(`[data-id="${dragId}"]`);
+  const colAtual = card?.closest('.kanban-col')?.dataset.status;
+  if(colAtual === novoStatus) return;
+  try{
+    const res = await fetch(`/os/${dragId}/mover_status`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':window.CSRF_TOKEN||''},
+      body:JSON.stringify({status:novoStatus})
+    });
+    const data = await res.json();
+    if(data.ok){
+      const destCol = document.getElementById(`col-${novoStatus}`);
+      const empty = destCol.querySelector('.col-empty');
+      if(empty) empty.remove();
+      destCol.prepend(card);
+      atualizarContadores();
+      card.style.outline = '2px solid #F7931E';
+      setTimeout(()=>card.style.outline='',1200);
+    }
+  }catch(err){console.error('Erro:',err);}
+  dragId = null;
+}
+function atualizarContadores(){
+  document.querySelectorAll('.kanban-col').forEach(col=>{
+    const cards = col.querySelectorAll('.os-card').length;
+    col.querySelector('.count').textContent = cards;
+    const area = col.querySelector('.kanban-cards');
+    if(cards===0 && !area.querySelector('.col-empty')){
+      const d=document.createElement('div');
+      d.className='col-empty';d.textContent='Nenhuma OS';
+      area.appendChild(d);
+    }
+  });
+}
+function filtrar(){
+  const tipo = document.getElementById('filtro-tipo').value;
+  document.querySelectorAll('.os-card').forEach(card=>{
+    card.style.display=(!tipo||card.dataset.tipo===tipo)?'':'none';
+  });
+  atualizarContadores();
+}
+setTimeout(()=>location.reload(),120000);
+</script>
+{% endblock %}

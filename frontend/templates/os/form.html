@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+<style>
+.os-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:1024px){.os-form-grid{grid-template-columns:1fr}}
+
+.section-block{background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);margin-bottom:16px;overflow:visible}
+.section-block-header{display:flex;align-items:center;justify-content:space-between;padding:13px 20px;background:var(--bg-elevated);border-bottom:1px solid var(--border-subtle)}
+.section-block-title{font-size:13px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px}
+.section-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.icon-servico{background:var(--azul-soft);color:var(--azul)}
+.icon-peca{background:var(--laranja-soft);color:var(--laranja)}
+.icon-implemento{background:var(--roxo-soft);color:var(--roxo)}
+.icon-pagamento{background:var(--verde-soft);color:var(--verde)}
+
+.item-row{display:grid;gap:10px;padding:14px 20px;align-items:flex-end;border-bottom:1px solid var(--border-subtle);animation:fadeSlide .18s ease}
+.item-row:last-child{border-bottom:none}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.item-row:hover{background:rgba(247,147,30,0.02)}
+
+.svc-grid{grid-template-columns:2fr 1.5fr 1fr 1fr 1fr 36px}
+.mat-grid{grid-template-columns:2fr 1.5fr 1fr 1fr 1fr 36px}
+.imp-grid{grid-template-columns:2fr 1.5fr 1fr 1fr 1fr 36px}
+.pag-grid{grid-template-columns:1fr 1fr 1fr 1fr 36px}
+
+@media(max-width:900px){
+  .svc-grid,.mat-grid,.imp-grid{grid-template-columns:1fr 1fr 1fr 36px}
+  .pag-grid{grid-template-columns:1fr 1fr 36px}
+}
+@media(max-width:600px){
+  .svc-grid,.mat-grid,.imp-grid,.pag-grid{grid-template-columns:1fr 36px}
+}
+
+.row-del-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--vermelho-soft);border:1px solid var(--vermelho-border);color:var(--vermelho);border-radius:var(--radius-sm);cursor:pointer;transition:var(--tf);font-size:14px;flex-shrink:0;align-self:flex-end}
+.row-del-btn:hover{background:rgba(255,69,69,0.22)}
+
+.inline-label{font-size:10.5px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;display:block}
+</style>
+{% endblock %}
+
+{% block title %}Nova OS{% endblock %}
+{% block page_title %}Nova Ordem de Serviço{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('os.lista') }}" class="btn btn-secondary btn-sm">← Voltar</a>
+{% endblock %}
+
+{% block content %}
+<form method="POST" id="formOS">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<!-- ROW 1: Dados gerais + Pagamentos -->
+<div class="os-form-grid">
+
+  <!-- DADOS GERAIS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📋 Dados Gerais</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Veículo *</label>
+          <div class="ss-wrap" data-catalog="veiculos" data-hidden-name="veiculo_id" data-required="true"
+               {% if request.args.get('veiculo') %}data-selected="{{ request.args.get('veiculo') }}"{% endif %}
+               data-placeholder="Buscar por placa ou modelo..."></div>
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de OS *</label>
+          <select name="tipo_os" required onchange="toggleTipoOS(this.value)">
+            <option value="interna">Interna (equipe própria)</option>
+            <option value="externa">Externa (fornecedor)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipo de manutenção *</label>
+          <select name="tipo_manutencao" required>
+            <option value="preventiva">Preventiva</option>
+            <option value="preditiva">Preditiva</option>
+            <option value="corretiva">Corretiva</option>
+          </select>
+        </div>
+        <div class="form-group" id="grp-fornecedor" style="display:none;">
+          <label>Fornecedor</label>
+          <div class="ss-wrap" data-catalog="fornecedores" data-hidden-name="fornecedor_id" data-placeholder="Buscar fornecedor..."></div>
+        </div>
+        <div class="form-group">
+          <label>Motorista</label>
+          <div class="ss-wrap" data-catalog="motoristas" data-hidden-name="motorista_id" data-placeholder="Buscar motorista..."></div>
+        </div>
+        <div class="form-group">
+          <label id="lbl_km_abertura">KM na abertura</label>
+          <input type="number" name="km_abertura" id="km_abertura" placeholder="ex: 45000">
+        </div>
+        <div class="form-group">
+          <label>Data de abertura *</label>
+          <input type="date" name="data_abertura" required id="data_abertura">
+        </div>
+        <div class="form-group">
+          <label>Data prevista</label>
+          <input type="date" name="data_prevista">
+        </div>
+        <div class="form-group full">
+          <label>Descrição do problema / serviço</label>
+          <textarea name="descricao_problema" rows="3" placeholder="Descreva o problema ou serviço a ser executado..."></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Observações</label>
+          <textarea name="observacoes" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGAMENTOS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">💰 Pagamentos</span>
+      <button type="button" onclick="addPagamento()" class="btn btn-secondary btn-sm">+ Parcela</button>
+    </div>
+    <div id="pagamentos-list">
+      <div class="item-row pag-grid">
+        <div class="form-group" style="margin:0;">
+          <label class="inline-label">NF / Nº Nota</label>
+          <input type="text" name="pag_nf[]" placeholder="nº nota fiscal">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="inline-label">Valor (R$)</label>
+          <input type="number" name="pag_val[]" step="0.01" placeholder="0,00">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="inline-label">Vencimento</label>
+          <input type="date" name="pag_venc[]">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="inline-label">Forma</label>
+          <select name="pag_forma[]">
+            <option value="">Selecione</option>
+            <option value="boleto">Boleto</option>
+            <option value="pix">PIX</option>
+            <option value="transferencia">Transferência</option>
+            <option value="cartao">Cartão</option>
+            <option value="dinheiro">Dinheiro</option>
+          </select>
+        </div>
+        <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SERVIÇOS -->
+<div class="section-block">
+  <div class="section-block-header">
+    <div class="section-block-title">
+      <span class="section-icon icon-servico">🔧</span>
+      Serviços
+    </div>
+    <button type="button" onclick="addServico()" class="btn btn-secondary btn-sm">+ Serviço</button>
+  </div>
+  <div id="servicos-list">
+    <div class="item-row svc-grid">
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Serviço do catálogo</label>
+        <div class="ss-wrap" data-catalog="servicos" data-hidden-name="servico_id[]" data-val-target="svc_val[]"></div>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Descrição livre</label>
+        <input type="text" name="svc_desc[]" placeholder="ou descreva aqui">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Executado por</label>
+        <input type="text" name="svc_exec[]" placeholder="técnico/oficina">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Qtd</label>
+        <input type="number" name="svc_qty[]" value="1" step="0.1" min="0.1">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Valor unit. (R$)</label>
+        <input type="number" name="svc_val[]" step="0.01" placeholder="0,00">
+      </div>
+      <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- PEÇAS -->
+<div class="section-block">
+  <div class="section-block-header">
+    <div class="section-block-title">
+      <span class="section-icon icon-peca">⚙</span>
+      Peças / Materiais
+    </div>
+    <button type="button" onclick="addPeca()" class="btn btn-secondary btn-sm">+ Peça</button>
+  </div>
+  <div id="pecas-list">
+    <div class="item-row mat-grid">
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Peça do catálogo</label>
+        <div class="ss-wrap" data-catalog="materiais" data-hidden-name="material_id[]" data-val-target="mat_val[]" data-un-target="mat_un[]"></div>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Descrição livre</label>
+        <input type="text" name="mat_desc[]" placeholder="ou descreva">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Unidade</label>
+        <input type="text" name="mat_un[]" placeholder="un/L/kg">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Qtd</label>
+        <input type="number" name="mat_qty[]" value="1" step="0.01" min="0.01">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Valor unit. (R$)</label>
+        <input type="number" name="mat_val[]" step="0.01" placeholder="0,00">
+      </div>
+      <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPLEMENTOS -->
+<div class="section-block">
+  <div class="section-block-header">
+    <div class="section-block-title">
+      <span class="section-icon icon-implemento">🏗</span>
+      Implementos
+    </div>
+    <button type="button" onclick="addImplemento()" class="btn btn-secondary btn-sm">+ Implemento</button>
+  </div>
+  <div id="implementos-list">
+    <div class="item-row imp-grid">
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Implemento do catálogo</label>
+        <div class="ss-wrap" data-catalog="implementos" data-hidden-name="imp_id[]" data-val-target="imp_val[]"></div>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Descrição livre</label>
+        <input type="text" name="imp_desc[]" placeholder="ou descreva">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Nº série</label>
+        <input type="text" name="imp_serie[]" placeholder="opcional">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Qtd</label>
+        <input type="number" name="imp_qty[]" value="1" step="1" min="1">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="inline-label">Valor unit. (R$)</label>
+        <input type="number" name="imp_val[]" step="0.01" placeholder="0,00">
+      </div>
+      <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACTIONS -->
+<div style="display:flex;justify-content:flex-end;gap:12px;padding-top:4px;">
+  <a href="{{ url_for('os.lista') }}" class="btn btn-secondary">Cancelar</a>
+  <button type="submit" class="btn btn-primary">Criar Ordem de Serviço →</button>
+</div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('data_abertura').value = new Date().toISOString().split('T')[0];
+
+function toggleTipoOS(val) {
+  document.getElementById('grp-fornecedor').style.display = val === 'externa' ? '' : 'none';
+}
+
+// ── CATÁLOGOS (registrados no engine global de searchable-select.js) ────
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculos: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  fornecedores: [
+    {% for f in fornecedores %}
+    {id:"{{ f.id }}", nome:{{ f.razao_social | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  motoristas: [
+    {% for m in motoristas %}
+    {id:"{{ m.id }}", nome:{{ m.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  servicos: [
+    {% for s in servicos %}
+    {id:"{{ s.id }}", nome:{{ s.nome | tojson }}, val:{{ s.valor_referencia or 0 }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  materiais: [
+    {% for m in materiais %}
+    {id:"{{ m.id }}", nome:{{ m.nome | tojson }}, val:{{ m.valor_referencia or 0 }}, un:{{ m.unidade | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  implementos: [
+    {% for i in implementos %}
+    {id:"{{ i.id }}", nome:{{ (i.nome + (' — ' + i.fabricante if i.fabricante else '')) | tojson }}, val:{{ i.valor_referencia or 0 }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+
+// ── TEMPLATES ──────────────────────────────────────────────────────────
+function svcRowHTML() {
+  return `<div class="item-row svc-grid">
+    <div class="form-group" style="margin:0;"><label class="inline-label">Serviço</label>
+      <div class="ss-wrap" data-catalog="servicos" data-hidden-name="servico_id[]" data-val-target="svc_val[]"></div>
+    </div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Descrição livre</label><input type="text" name="svc_desc[]" placeholder="ou descreva"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Executado por</label><input type="text" name="svc_exec[]" placeholder="técnico/oficina"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Qtd</label><input type="number" name="svc_qty[]" value="1" step="0.1" min="0.1"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Valor unit.</label><input type="number" name="svc_val[]" step="0.01" placeholder="0,00"></div>
+    <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+  </div>`;
+}
+function matRowHTML() {
+  return `<div class="item-row mat-grid">
+    <div class="form-group" style="margin:0;"><label class="inline-label">Peça</label>
+      <div class="ss-wrap" data-catalog="materiais" data-hidden-name="material_id[]" data-val-target="mat_val[]" data-un-target="mat_un[]"></div>
+    </div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Descrição livre</label><input type="text" name="mat_desc[]" placeholder="ou descreva"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Unidade</label><input type="text" name="mat_un[]" placeholder="un/L/kg"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Qtd</label><input type="number" name="mat_qty[]" value="1" step="0.01"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Valor unit.</label><input type="number" name="mat_val[]" step="0.01" placeholder="0,00"></div>
+    <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+  </div>`;
+}
+function impRowHTML() {
+  return `<div class="item-row imp-grid">
+    <div class="form-group" style="margin:0;"><label class="inline-label">Implemento</label>
+      <div class="ss-wrap" data-catalog="implementos" data-hidden-name="imp_id[]" data-val-target="imp_val[]"></div>
+    </div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Descrição livre</label><input type="text" name="imp_desc[]" placeholder="ou descreva"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Nº série</label><input type="text" name="imp_serie[]" placeholder="opcional"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Qtd</label><input type="number" name="imp_qty[]" value="1" step="1"></div>
+    <div class="form-group" style="margin:0;"><label class="inline-label">Valor unit.</label><input type="number" name="imp_val[]" step="0.01" placeholder="0,00"></div>
+    <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+  </div>`;
+}
+const pagTemplate = () => `<div class="item-row pag-grid">
+  <div class="form-group" style="margin:0;"><label class="inline-label">NF</label><input type="text" name="pag_nf[]" placeholder="nº nota"></div>
+  <div class="form-group" style="margin:0;"><label class="inline-label">Valor (R$)</label><input type="number" name="pag_val[]" step="0.01" placeholder="0,00"></div>
+  <div class="form-group" style="margin:0;"><label class="inline-label">Vencimento</label><input type="date" name="pag_venc[]"></div>
+  <div class="form-group" style="margin:0;"><label class="inline-label">Forma</label>
+    <select name="pag_forma[]"><option value="">Selecione</option><option value="boleto">Boleto</option><option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select></div>
+  <button type="button" onclick="this.closest('.item-row').remove()" class="row-del-btn" title="Remover">✕</button>
+</div>`;
+
+function addServico()    { document.getElementById('servicos-list').insertAdjacentHTML('beforeend', svcRowHTML()); window.SSInit.initAll(); }
+function addPeca()       { document.getElementById('pecas-list').insertAdjacentHTML('beforeend', matRowHTML()); window.SSInit.initAll(); }
+function addImplemento() { document.getElementById('implementos-list').insertAdjacentHTML('beforeend', impRowHTML()); window.SSInit.initAll(); }
+function addPagamento()  { document.getElementById('pagamentos-list').insertAdjacentHTML('beforeend', pagTemplate()); }
+</script>
+{% endblock %}
