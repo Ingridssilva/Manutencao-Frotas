@@ -1,0 +1,525 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+.dash-metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:14px;margin-bottom:24px}
+.dash-metric{background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:20px;position:relative;overflow:hidden;transition:var(--t)}
+.dash-metric::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);opacity:0;transition:opacity .3s}
+.dash-metric:hover::before{opacity:1}
+.dash-metric .accent-top-laranja::before{--accent:var(--laranja)}
+.dm-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.10em;color:var(--text-tertiary);margin-bottom:8px}
+.dm-value{font-family:var(--font-display);font-size:34px;font-weight:700;letter-spacing:-.05em;line-height:1;margin-bottom:4px}
+.dm-sub{font-size:12px;color:var(--text-tertiary)}
+.dm-var{font-size:11px;font-weight:600;margin-top:4px}
+.var-up{color:var(--vermelho)}.var-down{color:var(--verde)}.var-neutral{color:var(--text-tertiary)}
+
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.dash-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:1024px){.dash-grid,.dash-grid-3{grid-template-columns:1fr}}
+
+.chart-wrap{position:relative;height:220px}
+
+.alerta-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-subtle)}
+.alerta-row:last-child{border-bottom:none}
+.alerta-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-vermelho{background:var(--vermelho);box-shadow:0 0 6px var(--vermelho)}
+.dot-laranja{background:var(--laranja);box-shadow:0 0 6px var(--laranja)}
+.alerta-tipo{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary)}
+.alerta-desc{font-size:13px;font-weight:500;color:var(--text-primary)}
+.alerta-dias{font-size:12px;font-weight:700;white-space:nowrap}
+
+.top-veiculo{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-subtle)}
+.top-veiculo:last-child{border-bottom:none}
+.top-placa{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--laranja);min-width:80px}
+.pct-bar{height:6px;border-radius:3px;background:var(--bg-elevated);overflow:hidden;flex:1}
+.pct-fill{height:6px;border-radius:3px;transition:width .6s var(--ease)}
+
+.os-parada-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border-subtle)}
+.os-parada-row:last-child{border-bottom:none}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- MÉTRICAS PRINCIPAIS -->
+<div class="dash-metrics">
+  <div class="dash-metric" style="--accent:var(--verde);">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,{% if pct_disp_diaria >= 90 %}var(--verde){% elif pct_disp_diaria >= 75 %}var(--laranja){% else %}var(--vermelho){% endif %},transparent);"></div>
+    <div class="dm-label">Disponibilidade <span style="font-size:9px;opacity:.6;">hoje</span></div>
+    <div class="dm-value" style="color:{% if pct_disp_diaria >= 90 %}var(--verde){% elif pct_disp_diaria >= 75 %}var(--laranja){% else %}var(--vermelho){% endif %};">{{ pct_disp_diaria }}%</div>
+    <div class="dm-sub">{{ veiculos_disponiveis_hoje }} de {{ total_veiculos_ativos }} disponíveis hoje</div>
+  </div>
+
+  <div class="dash-metric" style="--accent:var(--laranja);">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--laranja),transparent);"></div>
+    <div class="dm-label">Custo do mês</div>
+    <div class="dm-value" style="color:var(--laranja);font-size:24px;">
+      R$ {{ '{:,.0f}'.format(custo_mes).replace(',', '.') }}
+    </div>
+    <div class="dm-var {% if var_custo > 10 %}var-up{% elif var_custo < -5 %}var-down{% else %}var-neutral{% endif %}">
+      {% if var_custo > 0 %}▲{% elif var_custo < 0 %}▼{% endif %}
+      {{ var_custo|abs }}% vs mês anterior
+    </div>
+  </div>
+
+  <div class="dash-metric" style="--accent:var(--azul);">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--azul),transparent);"></div>
+    <div class="dm-label">OS em aberto</div>
+    <div class="dm-value" style="color:{% if os_abertas > 10 %}var(--vermelho){% elif os_abertas > 5 %}var(--laranja){% else %}var(--azul){% endif %};">
+      {{ os_abertas + os_execucao + os_aguardando }}
+    </div>
+    <div class="dm-sub">{{ os_execucao }} em exec · {{ os_aguardando }} ag. peça</div>
+  </div>
+
+  <div class="dash-metric">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--text-tertiary),transparent);"></div>
+    <div class="dm-label">OS no mês</div>
+    <div class="dm-value">{{ os_mes }}</div>
+    <div class="dm-sub">abertas em {{ hoje.strftime('%b/%Y') }}</div>
+  </div>
+
+  <div class="dash-metric">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,{% if em_manutencao > 3 %}var(--vermelho){% elif em_manutencao > 0 %}var(--amarelo){% else %}var(--verde){% endif %},transparent);"></div>
+    <div class="dm-label">Em manutenção</div>
+    <div class="dm-value" style="color:{% if em_manutencao > 3 %}var(--vermelho){% elif em_manutencao > 0 %}var(--amarelo){% else %}var(--verde){% endif %};">{{ em_manutencao }}</div>
+    <div class="dm-sub">veículo(s) fora de operação</div>
+  </div>
+
+  <div class="dash-metric">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,{% if total_alertas_criticos > 0 %}var(--vermelho){% else %}var(--verde){% endif %},transparent);"></div>
+    <div class="dm-label">Alertas críticos</div>
+    <div class="dm-value" style="color:{% if total_alertas_criticos > 0 %}var(--vermelho){% else %}var(--verde){% endif %};">{{ total_alertas_criticos }}</div>
+    <div class="dm-sub">{% if total_alertas_criticos == 0 %}tudo em ordem{% else %}requerem atenção{% endif %}</div>
+  </div>
+
+  <div class="dash-metric" style="--accent:{% if oc_abertas > 10 %}var(--vermelho){% elif oc_abertas > 0 %}var(--amarelo){% else %}var(--verde){% endif %};">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,{% if oc_abertas > 10 %}var(--vermelho){% elif oc_abertas > 0 %}var(--amarelo){% else %}var(--verde){% endif %},transparent);"></div>
+    <div class="dm-label" title="Ordens de compra ainda não finalizadas (geradas, enviadas ou em aquisição)">Ordens de compra em aberto</div>
+    <div class="dm-value" style="color:{% if oc_abertas > 10 %}var(--vermelho){% elif oc_abertas > 0 %}var(--amarelo){% else %}var(--verde){% endif %};">
+      {{ oc_abertas }}
+    </div>
+    <div class="dm-sub">R$ {{ '{:,.0f}'.format(oc_valor_aberto).replace(',', '.') }} travado(s)</div>
+  </div>
+</div>
+
+<!-- VEÍCULOS INDISPONÍVEIS HOJE (lançados em Disponibilidade Diária) -->
+{% if veiculos_indisponiveis_hoje %}
+<div class="card" style="margin-bottom:20px; border-left:4px solid var(--vermelho);">
+  <div class="card-header">
+    <span class="card-title">🔴 Veículos indisponíveis hoje — {{ hoje.strftime('%d/%m/%Y') }}</span>
+    <a href="{{ url_for('disponibilidade.index') }}" style="font-size:12px;color:var(--laranja);">Ver calendário →</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Veículo</th>
+            <th>Descrição</th>
+            <th>Base</th>
+            <th>Motivo</th>
+            <th>Observações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in veiculos_indisponiveis_hoje %}
+          <tr>
+            <td>
+              <a href="{{ url_for('veiculos.detalhe', id=item.veiculo.id) }}" style="color:var(--laranja);font-weight:700;font-family:var(--mono);">{{ item.veiculo.placa }}</a>
+            </td>
+            <td style="font-size:12px;">{{ item.veiculo.descricao or '—' }}</td>
+            <td style="font-size:12px;color:var(--cinza-500);">{{ item.veiculo.municipio_base or '—' }}</td>
+            <td>
+              <span style="font-size:11px;font-weight:600;color:var(--vermelho);background:rgba(255,69,58,.1);padding:2px 8px;border-radius:6px;">
+                {% if item.motivo == 'manutencao' %}🔧 Manutenção
+                {% elif item.motivo == 'sem_motorista' %}👤 Sem motorista
+                {% elif item.motivo == 'acidente' %}🚨 Acidente
+                {% elif item.motivo == 'vistoria' %}🔍 Vistoria
+                {% else %}⚠️ {{ item.motivo|title }}{% endif %}
+              </span>
+            </td>
+            <td style="font-size:12px;color:var(--cinza-500);">{{ item.observacoes or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- INDICADORES MTBF / MTTR / DISPONIBILIDADE -->
+<div class="dash-grid-3" style="margin-bottom:20px;">
+
+  <!-- MTBF -->
+  <div class="dash-metric" style="--accent:var(--verde);">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--verde),transparent);"></div>
+    <div class="dm-label" title="Mean Time Between Failures — tempo médio entre falhas corretivas nos últimos 90 dias">MTBF <span style="font-size:9px;opacity:.6;">últimos 90d</span></div>
+    <div class="dm-value" style="color:{% if mtbf >= 200 %}var(--verde){% elif mtbf >= 80 %}var(--amarelo){% else %}var(--vermelho){% endif %};">
+      {{ mtbf|int }}h
+    </div>
+    <div class="dm-sub">tempo médio entre falhas</div>
+    <div class="dm-var var-neutral" style="margin-top:6px;font-size:10px;">{{ total_falhas_90d }} falha(s) corretiva(s)</div>
+  </div>
+
+  <!-- MTTR -->
+  <div class="dash-metric" style="--accent:var(--laranja);">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--laranja),transparent);"></div>
+    <div class="dm-label" title="Mean Time To Repair — tempo médio de reparo das OS corretivas nos últimos 90 dias">MTTR <span style="font-size:9px;opacity:.6;">últimos 90d</span></div>
+    <div class="dm-value" style="color:{% if mttr == 0 %}var(--verde){% elif mttr <= 12 %}var(--verde){% elif mttr <= 48 %}var(--amarelo){% else %}var(--vermelho){% endif %};">
+      {{ mttr|int }}h
+    </div>
+    <div class="dm-sub">tempo médio de reparo</div>
+    <div class="dm-var" style="margin-top:6px;font-size:10px;color:var(--text-tertiary);">quanto menor, melhor</div>
+  </div>
+
+  <!-- DISPONIBILIDADE CALCULADA -->
+  <div class="dash-metric" style="--accent:{% if disponibilidade_pct >= 90 %}var(--verde){% elif disponibilidade_pct >= 75 %}var(--amarelo){% else %}var(--vermelho){% endif %};">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,{% if disponibilidade_pct >= 90 %}var(--verde){% elif disponibilidade_pct >= 75 %}var(--amarelo){% else %}var(--vermelho){% endif %},transparent);"></div>
+    <div class="dm-label" title="Disponibilidade = MTBF / (MTBF + MTTR) × 100">Disponibilidade <span style="font-size:9px;opacity:.6;">MTBF/MTTR</span></div>
+    <div class="dm-value" style="color:{% if disponibilidade_pct >= 90 %}var(--verde){% elif disponibilidade_pct >= 75 %}var(--amarelo){% else %}var(--vermelho){% endif %};">
+      {{ disponibilidade_pct }}%
+    </div>
+    <div class="dm-sub">frota — últimos 90 dias</div>
+    <div class="dm-var" style="margin-top:6px;font-size:10px;">
+      <span style="color:var(--text-tertiary);">meta: </span>
+      <span style="color:{% if disponibilidade_pct >= 90 %}var(--verde){% else %}var(--vermelho){% endif %};">≥ 90%</span>
+    </div>
+  </div>
+</div>
+
+<!-- MTBF POR VEÍCULO -->
+{% if mtbf_por_veiculo %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">📊 MTBF / MTTR por veículo — últimos 90 dias</span>
+    <span style="font-size:11px;color:var(--text-tertiary);">apenas OS corretivas concluídas</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Veículo</th>
+            <th title="Número de paradas corretivas">Falhas</th>
+            <th title="Mean Time Between Failures — tempo médio entre falhas (horas)">MTBF (h)</th>
+            <th title="Mean Time To Repair — tempo médio de reparo (horas)">MTTR (h)</th>
+            <th title="Disponibilidade = MTBF ÷ (MTBF + MTTR) × 100">Disponib.</th>
+            <th>Barra</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in mtbf_por_veiculo %}
+          <tr>
+            <td>
+              <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" style="color:var(--laranja);font-weight:600;font-family:var(--mono);">{{ v.placa }}</a>
+              {% if v.descricao %}<span style="font-size:11px;color:var(--text-tertiary);margin-left:6px;">{{ v.descricao }}</span>{% endif %}
+            </td>
+            <td style="font-weight:700;color:{% if v.paradas >= 5 %}var(--vermelho){% elif v.paradas >= 3 %}var(--amarelo){% else %}var(--text-primary){% endif %};">
+              {{ v.paradas }}
+            </td>
+            <td style="font-family:var(--mono);color:{% if v.mtbf >= 200 %}var(--verde){% elif v.mtbf >= 80 %}var(--amarelo){% else %}var(--vermelho){% endif %};">
+              {{ v.mtbf }}h
+            </td>
+            <td style="font-family:var(--mono);color:{% if v.mttr <= 12 %}var(--verde){% elif v.mttr <= 48 %}var(--amarelo){% else %}var(--vermelho){% endif %};">
+              {{ v.mttr }}h
+            </td>
+            <td style="font-weight:700;color:{% if v.disponivel >= 90 %}var(--verde){% elif v.disponivel >= 75 %}var(--amarelo){% else %}var(--vermelho){% endif %};">
+              {{ v.disponivel }}%
+            </td>
+            <td style="min-width:100px;">
+              <div class="pct-bar">
+                <div class="pct-fill" style="width:{{ v.disponivel|int }}%;background:{% if v.disponivel >= 90 %}var(--verde){% elif v.disponivel >= 75 %}var(--amarelo){% else %}var(--vermelho){% endif %};"></div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:10px 22px;font-size:11px;color:var(--text-tertiary);border-top:1px solid var(--border-subtle);">
+      <strong>MTBF</strong> = tempo médio entre falhas (maior = melhor) &nbsp;·&nbsp;
+      <strong>MTTR</strong> = tempo médio de reparo (menor = melhor) &nbsp;·&nbsp;
+      <strong>Disponib.</strong> = MTBF ÷ (MTBF + MTTR) × 100
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- GRÁFICOS -->
+<div class="dash-grid" style="margin-bottom:20px;">
+
+  <!-- GRÁFICO: OS por mês + Custo -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">OS & Custo — últimos 6 meses</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrap">
+        <canvas id="chartOsMes"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICO: Status atual das OS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Status das OS em aberto</span>
+    </div>
+    <div class="card-body" style="display:flex;align-items:center;justify-content:center;gap:32px;">
+      <div style="position:relative;width:160px;height:160px;flex-shrink:0;">
+        <canvas id="chartStatus"></canvas>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div style="font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--text-primary);">{{ os_abertas + os_execucao + os_aguardando }}</div>
+          <div style="font-size:11px;color:var(--text-tertiary);">total</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--azul);flex-shrink:0;"></div>
+          <span style="font-size:13px;color:var(--text-secondary);">Abertas</span>
+          <span style="font-size:14px;font-weight:700;margin-left:auto;color:var(--azul);">{{ os_abertas }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--laranja);flex-shrink:0;"></div>
+          <span style="font-size:13px;color:var(--text-secondary);">Em execução</span>
+          <span style="font-size:14px;font-weight:700;margin-left:auto;color:var(--laranja);">{{ os_execucao }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--roxo);flex-shrink:0;"></div>
+          <span style="font-size:13px;color:var(--text-secondary);">Ag. peça</span>
+          <span style="font-size:14px;font-weight:700;margin-left:auto;color:var(--roxo);">{{ os_aguardando }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dash-grid-3">
+
+  <!-- VEÍCULOS MAIS PROBLEMÁTICOS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚠ Veículos mais corretivas</span>
+      <span style="font-size:11px;color:var(--text-tertiary);">últimos 90 dias</span>
+    </div>
+    <div class="card-body" style="padding:8px 22px;">
+      {% if top_corretivas %}
+        {% set max_qtd = top_corretivas[0].qtd %}
+        {% for v in top_corretivas %}
+        <div class="top-veiculo">
+          <a href="{{ url_for('veiculos.detalhe', id=v.id) if v.id else '#' }}" class="top-placa">{{ v.placa }}</a>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <div class="pct-bar">
+                <div class="pct-fill" style="width:{{ (v.qtd / max_qtd * 100)|int }}%;background:var(--vermelho);"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:var(--text-primary);white-space:nowrap;">{{ v.qtd }}x</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-tertiary);">R$ {{ '{:,.0f}'.format(v.custo).replace(',','.') }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding:24px;">Sem corretivas no período.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- OS PARADAS (> 7 dias) -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🔴 OS paradas &gt; 7 dias</span>
+    </div>
+    <div class="card-body" style="padding:8px 22px;">
+      {% if os_paradas %}
+        {% for o in os_paradas %}
+        <div class="os-parada-row">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <a href="{{ url_for('os.detalhe', id=o.id) }}" class="mono" style="font-size:13px;font-weight:600;color:var(--laranja);">{{ o.numero }}</a>
+              <span style="font-size:11px;color:var(--text-tertiary);">{{ o.veiculo.placa if o.veiculo else '—' }}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">
+              {{ o.descricao_problema[:40] if o.descricao_problema else '—' }}
+            </div>
+          </div>
+          {% set dias = (hoje - o.data_abertura).days %}
+          <span style="font-size:12px;font-weight:700;color:{% if dias > 14 %}var(--vermelho){% else %}var(--amarelo){% endif %};white-space:nowrap;">
+            {{ dias }}d
+          </span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding:24px;">
+          <div class="empty-state-icon">✅</div>
+          <p>Nenhuma OS parada!</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- VENCIMENTOS & ALERTAS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📅 Vencimentos próximos</span>
+    </div>
+    <div class="card-body" style="padding:8px 22px;">
+      {% if alertas_venc %}
+        {% for a in alertas_venc %}
+        <div class="alerta-row">
+          <div class="alerta-dot dot-{{ a.nivel }}"></div>
+          <div style="flex:1;min-width:0;">
+            <div class="alerta-tipo">{{ a.tipo }}</div>
+            <div class="alerta-desc">{{ a.desc }}</div>
+          </div>
+          <div class="alerta-dias" style="color:{% if a.nivel == 'vermelho' %}var(--vermelho){% else %}var(--amarelo){% endif %};">
+            {{ a.dias }}d
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding:24px;">
+          <div class="empty-state-icon">✅</div>
+          <p>Sem vencimentos próximos.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- CUSTO POR VEÍCULO (relatório rápido) -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">💰 Custo por veículo — mês atual</span>
+    <a href="{{ url_for('relatorios.custos') }}" class="btn btn-secondary btn-sm">Ver relatório completo →</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Veículo</th>
+            <th>OS no mês</th>
+            <th>Preventiva</th>
+            <th>Corretiva</th>
+            <th>Custo total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in custo_por_veiculo %}
+          <tr>
+            <td>
+              <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" style="color:var(--laranja);font-weight:600;font-family:var(--mono);">{{ v.placa }}</a>
+              <span style="font-size:12px;color:var(--text-tertiary);margin-left:6px;">{{ v.descricao or '' }}</span>
+            </td>
+            <td>{{ v.qtd_os }}</td>
+            <td><span class="badge badge-verde">{{ v.qtd_prev }}</span></td>
+            <td><span class="badge badge-vermelho">{{ v.qtd_corr }}</span></td>
+            <td style="font-family:var(--mono);font-weight:600;color:{% if v.custo > 5000 %}var(--vermelho){% elif v.custo > 1000 %}var(--amarelo){% else %}var(--text-primary){% endif %};">
+              R$ {{ '{:,.2f}'.format(v.custo).replace(',','X').replace('.', ',').replace('X','.') }}
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not custo_por_veiculo %}
+          <tr><td colspan="5" class="empty-state" style="padding:24px;">Nenhum custo registrado no mês.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const C = Chart.defaults;
+C.color = 'rgba(238,238,243,0.7)';
+C.borderColor = 'rgba(255,255,255,0.05)';
+C.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
+
+const osMes  = {{ os_por_mes | tojson }};
+const labels = osMes.map(r => r.mes);
+const qtds   = osMes.map(r => r.qtd);
+const custos = osMes.map(r => parseFloat(r.custo));
+
+// Gráfico OS por mês
+new Chart(document.getElementById('chartOsMes'), {
+  data: {
+    labels,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Qtd OS',
+        data: qtds,
+        backgroundColor: 'rgba(77,158,255,0.25)',
+        borderColor: 'rgba(77,158,255,0.8)',
+        borderWidth: 1,
+        borderRadius: 4,
+        yAxisID: 'y',
+      },
+      {
+        type: 'line',
+        label: 'Custo (R$)',
+        data: custos,
+        borderColor: '#F7931E',
+        backgroundColor: 'rgba(247,147,30,0.10)',
+        borderWidth: 2,
+        pointBackgroundColor: '#F7931E',
+        pointRadius: 4,
+        tension: 0.4,
+        fill: true,
+        yAxisID: 'y2',
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
+    scales: {
+      y:  { position: 'left',  grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 1 } },
+      y2: { position: 'right', grid: { display: false }, ticks: {
+        callback: v => 'R$' + v.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
+      }},
+    }
+  }
+});
+
+// Gráfico donut status
+const aberta  = {{ os_abertas }};
+const execucao= {{ os_execucao }};
+const agPeca  = {{ os_aguardando }};
+const total   = aberta + execucao + agPeca;
+
+new Chart(document.getElementById('chartStatus'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Abertas', 'Em execução', 'Ag. peça'],
+    datasets: [{
+      data: total > 0 ? [aberta, execucao, agPeca] : [1],
+      backgroundColor: total > 0
+        ? ['rgba(77,158,255,0.8)', 'rgba(247,147,30,0.8)', 'rgba(155,109,255,0.8)']
+        : ['rgba(255,255,255,0.06)'],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '72%',
+    plugins: { legend: { display: false } }
+  }
+});
+
+// Auto-refresh a cada 3 minutos
+setTimeout(() => location.reload(), 180000);
+</script>
+{% endblock %}
