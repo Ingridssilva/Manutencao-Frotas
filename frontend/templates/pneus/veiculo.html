@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Pneus — {{ v.placa }}{% endblock %}
+{% block page_title %}Pneus — {{ v.placa }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('pneus.rodizio', veiculo_id=v.id) }}" class="btn btn-secondary btn-sm">↺ Rodízio</a>
+  <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary btn-sm">← Veículo</a>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:20px;font-size:13px;color:var(--cinza-500);">
+  KM atual: <strong class="mono">{{ '{:,}'.format(v.km_atual).replace(',','.') }}</strong>
+</div>
+
+<!-- Mapa visual do veículo -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header"><span class="card-title">Mapa de pneus</span></div>
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;">
+
+      {% macro pneu_card(sigla) %}
+      {% set p = mapa.get(sigla) %}
+      <div style="border:1.5px solid {% if p %}{% if p.pneu.status_desgaste=='ok' %}var(--verde){% elif p.pneu.status_desgaste=='atencao' %}var(--laranja){% else %}var(--vermelho){% endif %}{% else %}var(--cinza-100){% endif %};border-radius:10px;padding:12px 14px;background:{% if p %}var(--branco){% else %}var(--cinza-50){% endif %};">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--cinza-400);margin-bottom:6px;">{{ POSICOES.get(sigla, sigla) }}</div>
+        {% if p %}
+          <div style="font-weight:600;font-size:13px;">{{ p.pneu.nome_display }}</div>
+          <div class="mono text-small" style="color:var(--cinza-400);">{{ p.pneu.dimensao or '' }}</div>
+          <div style="margin-top:6px;">
+            <div style="background:var(--cinza-100);height:5px;border-radius:3px;">
+              <div style="height:5px;border-radius:3px;width:{{ p.pneu.pct_vida }}%;background:{% if p.pneu.status_desgaste=='ok' %}var(--verde){% elif p.pneu.status_desgaste=='atencao' %}var(--laranja){% else %}var(--vermelho){% endif %};"></div>
+            </div>
+            <div style="font-size:11px;color:var(--cinza-400);margin-top:3px;">{{ p.pneu.pct_vida }}% desgaste</div>
+          </div>
+          <a href="{{ url_for('pneus.detalhe', id=p.pneu_id) }}" class="btn btn-secondary btn-sm" style="margin-top:8px;font-size:11px;">Ver pneu</a>
+        {% else %}
+          <div style="color:var(--cinza-300);font-size:12px;">Sem pneu</div>
+          <a href="{{ url_for('pneus.novo') }}" class="btn btn-secondary btn-sm" style="margin-top:8px;font-size:11px;">+ Adicionar</a>
+        {% endif %}
+      </div>
+      {% endmacro %}
+
+      {{ pneu_card('DE') }}
+      {{ pneu_card('DD') }}
+      {{ pneu_card('TEE') }}
+      {{ pneu_card('TDE') }}
+      {{ pneu_card('TEI') }}
+      {{ pneu_card('TDI') }}
+      {{ pneu_card('STEP') }}
+    </div>
+  </div>
+</div>
+
+<!-- Tabela detalhada -->
+<div class="card">
+  <div class="card-header"><span class="card-title">Detalhe dos pneus montados</span></div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Posição</th><th>Pneu</th><th>Tipo</th><th>KM montagem</th><th>KM rodado</th><th>Vida</th><th>Recapagens</th><th></th></tr></thead>
+        <tbody>
+          {% for sigla, pos in mapa.items() %}
+          {% set pneu = pos.pneu %}
+          <tr>
+            <td><strong>{{ pos.posicao_display }}</strong></td>
+            <td><a href="{{ url_for('pneus.detalhe', id=pneu.id) }}">{{ pneu.nome_display }}</a></td>
+            <td><span class="badge {% if pneu.tipo=='novo' %}badge-verde{% else %}badge-laranja{% endif %}">{{ pneu.tipo }}</span></td>
+            <td class="mono">{{ '{:,}'.format(pos.km_inicio).replace(',','.') if pos.km_inicio else '—' }}</td>
+            <td class="mono">{{ '{:,}'.format(pneu.km_rodado).replace(',','.') }} km</td>
+            <td>
+              <span class="badge {% if pneu.status_desgaste=='ok' %}badge-verde{% elif pneu.status_desgaste=='atencao' %}badge-laranja{% else %}badge-vermelho{% endif %}">
+                {{ pneu.pct_vida }}%
+              </span>
+            </td>
+            <td style="text-align:center;">{{ pneu.vezes_recapado }}×</td>
+            <td><a href="{{ url_for('pneus.detalhe', id=pneu.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="empty-state">Nenhum pneu montado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block title %}Pneu {{ pneu.codigo or pneu.id }}{% endblock %}
+{% block page_title %}{{ pneu.nome_display }}{% endblock %}
+
+{% block topbar_actions %}
+  {% if pneu.status == 'ativo' %}
+    <a href="{{ url_for('pneus.montar', id=pneu.id) }}" class="btn btn-secondary btn-sm">Montar</a>
+    {% if pneu.posicao_atual %}
+    <form method="POST" action="{{ url_for('pneus.desmontar', id=pneu.id) }}" style="display:inline;" onsubmit="return confirm('Desmontar pneu?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm">Desmontar</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('pneus.recapar', id=pneu.id) }}" class="btn btn-secondary btn-sm">Enviar recapagem</a>
+  {% elif pneu.status == 'recapando' %}
+    {% set rec = pneu.recapagens | selectattr('status','eq','enviado') | first %}
+    {% if rec %}
+    <form method="POST" action="{{ url_for('pneus.concluir_recapagem', id=rec.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-sm">✓ Recapagem concluída</button>
+    </form>
+    {% endif %}
+  {% endif %}
+  <a href="{{ url_for('pneus.lista') }}" class="btn btn-secondary btn-sm">← Lista</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="margin-bottom:20px;">
+  <!-- Info -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Dados do pneu</span></div>
+    <div class="card-body">
+      <table style="font-size:13px;">
+        <tr><td style="color:var(--cinza-500);padding:5px 0;width:130px;">Código</td><td class="mono">{{ pneu.codigo or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Marca / Modelo</td><td>{{ pneu.marca or '—' }} {{ pneu.modelo or '' }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Dimensão</td><td class="mono">{{ pneu.dimensao or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Tipo</td><td><span class="badge {% if pneu.tipo=='novo' %}badge-verde{% else %}badge-laranja{% endif %}">{{ pneu.tipo }}</span></td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">DOT</td><td>{{ pneu.dot or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Recapagens</td><td>{{ pneu.vezes_recapado }}×</td></tr>
+        <tr><td style="color:var(--cinza-500);padding:5px 0;">Custo</td><td>{% if pneu.custo_aquisicao %}R$ {{ '{:,.2f}'.format(pneu.custo_aquisicao).replace(',','X').replace('.', ',').replace('X','.') }}{% else %}—{% endif %}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Vida útil -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Vida útil</span></div>
+    <div class="card-body" style="text-align:center;">
+      {% set st = pneu.status_desgaste %}
+      {% set cor = 'var(--verde)' if st=='ok' else ('var(--laranja)' if st=='atencao' else 'var(--vermelho)') %}
+      <div style="font-size:48px;font-weight:700;color:{{ cor }};font-family:var(--mono);">{{ pneu.pct_vida }}%</div>
+      <div style="font-size:13px;color:var(--cinza-500);margin-bottom:16px;">de vida utilizada</div>
+      <div style="background:var(--cinza-100);border-radius:6px;height:10px;overflow:hidden;margin-bottom:12px;">
+        <div style="height:10px;border-radius:6px;width:{{ pneu.pct_vida }}%;background:{{ cor }};transition:width .5s;"></div>
+      </div>
+      <div style="font-size:13px;color:var(--cinza-500);">
+        <strong>{{ '{:,}'.format(pneu.km_rodado).replace(',','.') }}</strong> km rodados
+        de <strong>{{ '{:,}'.format(pneu.km_limite or 0).replace(',','.') }}</strong> km estimados
+      </div>
+      {% set pos = pneu.posicao_atual %}
+      {% if pos %}
+      <div style="margin-top:16px;padding:12px;background:var(--cinza-50);border-radius:8px;">
+        <div style="font-size:12px;color:var(--cinza-400);">Montado em</div>
+        <div style="font-weight:600;color:var(--laranja);font-family:var(--mono);">{{ pos.veiculo.placa }}</div>
+        <div style="font-size:13px;">{{ pos.posicao_display }}</div>
+        <div style="font-size:11px;color:var(--cinza-400);">desde {{ pos.data_inicio.strftime('%d/%m/%Y') }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Histórico de posições -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><span class="card-title">Histórico de posições / rodízios</span></div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Veículo</th><th>Posição</th><th>Montado em</th><th>KM inicial</th><th>Desmontado em</th><th>KM final</th><th>KM rodado</th></tr></thead>
+        <tbody>
+          {% for h in historico %}
+          <tr {% if h.ativo %}style="background:rgba(247,147,30,.04);"{% endif %}>
+            <td><a href="{{ url_for('veiculos.detalhe', id=h.veiculo_id) }}" style="color:var(--laranja);font-family:var(--mono);font-weight:600;">{{ h.veiculo.placa }}</a></td>
+            <td>{{ h.posicao_display }} <span class="mono text-small">({{ h.posicao }})</span></td>
+            <td>{{ h.data_inicio.strftime('%d/%m/%Y') if h.data_inicio else '—' }}</td>
+            <td class="mono">{{ '{:,}'.format(h.km_inicio).replace(',','.') if h.km_inicio else '—' }}</td>
+            <td>{{ h.data_fim.strftime('%d/%m/%Y') if h.data_fim else '<span class="badge badge-verde">Atual</span>' | safe }}</td>
+            <td class="mono">{{ '{:,}'.format(h.km_fim).replace(',','.') if h.km_fim else '—' }}</td>
+            <td class="mono">
+              {% if h.km_inicio and h.km_fim %}{{ '{:,}'.format(h.km_fim - h.km_inicio).replace(',','.') }} km{% else %}—{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty-state">Nenhuma montagem registrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Recapagens -->
+{% if pneu.recapagens %}
+<div class="card">
+  <div class="card-header"><span class="card-title">Histórico de recapagens</span></div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Envio</th><th>Retorno</th><th>KM envio</th><th>Fornecedor</th><th>Custo</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for r in pneu.recapagens | sort(attribute='data_envio', reverse=True) %}
+          <tr>
+            <td>{{ r.data_envio.strftime('%d/%m/%Y') }}</td>
+            <td>{{ r.data_retorno.strftime('%d/%m/%Y') if r.data_retorno else '—' }}</td>
+            <td class="mono">{{ '{:,}'.format(r.km_envio).replace(',','.') if r.km_envio else '—' }}</td>
+            <td>{{ r.fornecedor.razao_social if r.fornecedor else '—' }}</td>
+            <td>{% if r.custo %}R$ {{ '{:,.2f}'.format(r.custo).replace(',','X').replace('.', ',').replace('X','.') }}{% else %}—{% endif %}</td>
+            <td>
+              {% if r.status == 'enviado' %}<span class="badge badge-azul">Enviado</span>
+              {% elif r.status == 'concluido' %}<span class="badge badge-verde">Concluído</span>
+              {% else %}<span class="badge badge-vermelho">Reprovado</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

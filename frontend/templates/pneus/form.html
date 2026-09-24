@@ -1,0 +1,64 @@
+<!-- FORM -->
+{% extends 'base.html' %}
+{% block title %}Cadastrar Pneu{% endblock %}
+{% block page_title %}Cadastrar Pneu{% endblock %}
+{% block content %}
+<div class="card" style="max-width:760px;">
+  <div class="card-header"><span class="card-title">Dados do pneu</span></div>
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group"><label>Código interno</label><input type="text" name="codigo" placeholder="ex: PNE-001"></div>
+        <div class="form-group"><label>Tipo *</label>
+          <select name="tipo" required>
+            <option value="novo">Novo</option>
+            <option value="recapado">Recapado</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Marca</label><input type="text" name="marca" placeholder="ex: Bridgestone, Pirelli"></div>
+        <div class="form-group"><label>Modelo</label><input type="text" name="modelo"></div>
+        <div class="form-group"><label>Dimensão *</label><input type="text" name="dimensao" placeholder="ex: 275/80R22.5" required></div>
+        <div class="form-group"><label>DOT (fabricação)</label><input type="text" name="dot" placeholder="ex: 2024/3"></div>
+        <div class="form-group"><label>KM inicial (quando começou a usar)</label><input type="number" name="km_inicial" value="0" min="0"></div>
+        <div class="form-group"><label>Vida útil estimada (km)</label><input type="number" name="km_limite" value="80000" min="0"></div>
+        <div class="form-group"><label>Custo de aquisição (R$)</label><input type="number" name="custo_aquisicao" step="0.01" min="0"></div>
+        <div class="form-group"><label>Fornecedor</label>
+          <div class="ss-wrap" data-catalog="fornecedoresPneu" data-hidden-name="fornecedor_id" data-placeholder="Buscar fornecedor..."></div>
+        </div>
+        <div class="form-group"><label>Montar em — Veículo</label>
+          <div class="ss-wrap" data-catalog="veiculosPneu" data-hidden-name="veiculo_id" data-placeholder="Buscar por placa..."></div>
+        </div>
+        <div class="form-group"><label>Posição</label>
+          <select name="posicao">
+            <option value="">—</option>
+            {% for k,v in POSICOES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group full"><label>Observações</label><textarea name="observacoes" rows="2"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('pneus.lista') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Cadastrar pneu</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  fornecedoresPneu: [
+    {% for f in fornecedores %}
+    {id:"{{ f.id }}", nome:{{ f.razao_social | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  veiculosPneu: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

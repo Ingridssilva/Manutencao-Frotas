@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Controle de Pneus{% endblock %}
+{% block page_title %}Controle de Pneus{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('pneus.novo') }}" class="btn btn-primary btn-sm">+ Cadastrar pneu</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
+  <form method="GET" style="display:flex;gap:8px;">
+    <select name="status" onchange="this.form.submit()" style="font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--cinza-100);">
+      <option value="">Todos</option>
+      <option value="ativo"      {% if status=='ativo' %}selected{% endif %}>Ativos</option>
+      <option value="recapando"  {% if status=='recapando' %}selected{% endif %}>Em recapagem</option>
+      <option value="baixado"    {% if status=='baixado' %}selected{% endif %}>Baixados</option>
+    </select>
+  </form>
+  <span style="font-size:12px;color:var(--cinza-400);">{{ pneus.total }} pneus</span>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cód.</th><th>Pneu</th><th>Tipo</th><th>Dimensão</th>
+            <th>Posição atual</th><th>Vida útil</th><th>Recapagens</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pneus.items %}
+          {% set pos = p.posicao_atual %}
+          {% set st = p.status_desgaste %}
+          <tr>
+            <td class="mono text-small">{{ p.codigo or '—' }}</td>
+            <td>
+              <a href="{{ url_for('pneus.detalhe', id=p.id) }}" style="font-weight:600;">{{ p.nome_display }}</a>
+            </td>
+            <td>
+              <span class="badge {% if p.tipo=='novo' %}badge-verde{% else %}badge-laranja{% endif %}">
+                {{ p.tipo }}
+              </span>
+            </td>
+            <td class="mono text-small">{{ p.dimensao or '—' }}</td>
+            <td>
+              {% if pos %}
+                <span style="font-weight:600;">{{ pos.posicao_display }}</span>
+                <div style="font-size:11px;color:var(--cinza-400);">
+                  <a href="{{ url_for('veiculos.detalhe', id=pos.veiculo_id) }}" style="color:var(--laranja);">{{ pos.veiculo.placa }}</a>
+                </div>
+              {% elif p.status == 'recapando' %}
+                <span class="badge badge-azul">Em recapagem</span>
+              {% else %}
+                <span style="color:var(--cinza-300);">Desmontado</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;height:6px;background:var(--cinza-100);border-radius:3px;min-width:80px;">
+                  <div style="height:6px;border-radius:3px;width:{{ p.pct_vida }}%;background:{% if st=='ok' %}var(--verde){% elif st=='atencao' %}var(--laranja){% else %}var(--vermelho){% endif %};"></div>
+                </div>
+                <span style="font-size:11px;color:var(--cinza-500);">{{ p.pct_vida }}%</span>
+              </div>
+              <div style="font-size:11px;color:var(--cinza-400);">{{ '{:,}'.format(p.km_rodado).replace(',','.') }} / {{ '{:,}'.format(p.km_limite or 0).replace(',','.') }} km</div>
+            </td>
+            <td style="text-align:center;">
+              <span class="badge {% if p.vezes_recapado > 0 %}badge-laranja{% else %}badge-cinza{% endif %}">
+                {{ p.vezes_recapado }}×
+              </span>
+            </td>
+            <td>
+              {% if p.status == 'ativo' %}<span class="badge badge-verde">Ativo</span>
+              {% elif p.status == 'recapando' %}<span class="badge badge-azul">Recapando</span>
+              {% else %}<span class="badge badge-cinza">Baixado</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('pneus.detalhe', id=p.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="9" class="empty-state">Nenhum pneu cadastrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if pneus.pages > 1 %}
+    <div class="pagination">
+      {% for pg in pneus.iter_pages() %}
+        {% if pg %}<a href="?page={{ pg }}&status={{ status }}" class="page-btn {% if pg == pneus.page %}active{% endif %}">{{ pg }}</a>
+        {% else %}<span class="page-btn">…</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'base.html' %}{% block title %}Montar Pneu{% endblock %}{% block content %}
+<div class="card" style="max-width:600px;">
+  <div class="card-header"><span class="card-title">Montar — {{ pneu.nome_display }}</span></div>
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group"><label>Veículo *</label>
+          <div class="ss-wrap" data-catalog="veiculosMontar" data-hidden-name="veiculo_id" data-required="true" data-placeholder="Buscar por placa..."></div>
+        </div>
+        <div class="form-group"><label>Posição *</label>
+          <select name="posicao" required>
+            <option value="">Selecione...</option>
+            {% for k,v in POSICOES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group full"><label>Observações</label><textarea name="observacoes" rows="2"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('pneus.detalhe', id=pneu.id) }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Montar pneu</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosMontar: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}
