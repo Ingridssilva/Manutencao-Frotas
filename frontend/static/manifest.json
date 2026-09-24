@@ -1,0 +1,35 @@
+{
+  "name": "Empresa Exemplo — Frota",
+  "short_name": "Frota RE",
+  "description": "Sistema de Gestão de Frotas Empresa Exemplo",
+  "start_url": "/dashboard/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0D0D10",
+  "theme_color": "#F7931E",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nova OS",
+      "short_name": "Nova OS",
+      "url": "/os/nova"
+    },
+    {
+      "name": "Kanban",
+      "short_name": "Kanban",
+      "url": "/kanban"
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard/"
+    }
+  ]
+}
