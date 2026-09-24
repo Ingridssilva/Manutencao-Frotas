@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}{% if v %}Editar {{ v.placa }}{% else %}Novo Veículo{% endif %}{% endblock %}
+{% block page_title %}{% if v %}Editar veículo{% else %}Novo veículo{% endif %}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:900px;">
+  <div class="card-header"><span class="card-title">Dados do veículo</span></div>
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group"><label>Placa *</label><input type="text" name="placa" value="{{ v.placa if v else '' }}" required maxlength="10" style="text-transform:uppercase;"></div>
+        <div class="form-group"><label>Descrição</label><input type="text" name="descricao" value="{{ v.descricao if v else '' }}" placeholder="Ex: Hilux Prata 2022"></div>
+        <div class="form-group"><label>Marca</label><input type="text" name="marca" value="{{ v.marca if v else '' }}"></div>
+        <div class="form-group"><label>Modelo</label><input type="text" name="modelo" value="{{ v.modelo if v else '' }}"></div>
+        <div class="form-group"><label>Ano fabricação</label><input type="number" name="ano_fabricacao" value="{{ v.ano_fabricacao if v else '' }}" min="1990" max="2030"></div>
+        <div class="form-group"><label>Ano modelo</label><input type="number" name="ano_modelo" value="{{ v.ano_modelo if v else '' }}" min="1990" max="2030"></div>
+        <div class="form-group"><label>Cor</label><input type="text" name="cor" value="{{ v.cor if v else '' }}"></div>
+        <div class="form-group"><label>Tipo de veículo</label>
+          <div class="ss-wrap" data-catalog="tiposVeiculo" data-hidden-name="tipo_veiculo"
+               {% if v and v.tipo_veiculo %}data-selected="{{ v.tipo_veiculo }}"{% endif %}
+               data-placeholder="Buscar tipo de veículo..."></div></div>
+        <div class="form-group"><label>Chassi</label><input type="text" name="chassi" value="{{ v.chassi if v else '' }}"></div>
+        <div class="form-group"><label>RENAVAM</label><input type="text" name="renavam" value="{{ v.renavam if v else '' }}"></div>
+        <div class="form-group"><label>Município base</label>
+          <div class="ss-wrap" data-catalog="municipiosBase" data-hidden-name="municipio_base"
+               {% if v and v.municipio_base %}data-selected="{{ v.municipio_base }}"{% endif %}
+               data-placeholder="Buscar município..."></div></div>
+        <div class="form-group"><label>Propriedade</label>
+          <select name="tipo_propriedade" onchange="toggleLocado(this.value)">
+            <option value="proprio" {% if not v or v.tipo_propriedade == 'proprio' %}selected{% endif %}>Próprio</option>
+            <option value="locado" {% if v and v.tipo_propriedade == 'locado' %}selected{% endif %}>Locado</option>
+          </select></div>
+        <div class="form-group" id="grp-locado" style="{% if not v or v.tipo_propriedade != 'locado' %}display:none;{% endif %}">
+          <label>Fornecedor locação</label>
+          <div class="ss-wrap" data-catalog="fornecedoresVeic" data-hidden-name="fornecedor_locacao_id"
+               {% if v and v.fornecedor_locacao_id %}data-selected="{{ v.fornecedor_locacao_id }}"{% endif %}
+               data-placeholder="Buscar fornecedor..."></div></div>
+        <div class="form-group"><label>KM atual</label><input type="number" name="km_atual" value="{{ v.km_atual if v else 0 }}" min="0"></div>
+        {% if v %}
+        <div class="form-group"><label>Status</label>
+          <select name="status">
+            <option value="ativo" {% if v.status == 'ativo' %}selected{% endif %}>Ativo</option>
+            <option value="manutencao" {% if v.status == 'manutencao' %}selected{% endif %}>Manutenção</option>
+            <option value="inativo" {% if v.status == 'inativo' %}selected{% endif %}>Inativo</option>
+          </select></div>
+        {% endif %}
+        <div class="form-group full"><label>Observações</label><textarea name="observacoes">{{ v.observacoes if v else '' }}</textarea></div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+        <a href="{{ url_for('veiculos.lista') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{% if v %}Salvar{% else %}Cadastrar veículo{% endif %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+function toggleLocado(v){document.getElementById('grp-locado').style.display=v==='locado'?'':'none';}
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  tiposVeiculo: [
+    {% for t in ['Caminhonete','Caminhão leve','Caminhão médio','Caminhão pesado','Van','Micro-ônibus','Moto','SUV','Veículo leve','Embarcação','Trator','Retroescavadeira','PC','Escavadeira','Motoniveladora','Pá carregadeira','Compactador','Outro'] %}
+    {id:{{ t | tojson }}, nome:{{ t | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  municipiosBase: [
+    {% for m in ['Santarém','Juruti','Almeirim','Barcarena','Oriximiná','Óbidos','Alenquer','Monte Alegre','Prainha','Portela','Faro','Terra Santa','Aveiro','Belterra'] %}
+    {id:{{ m | tojson }}, nome:{{ m | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  fornecedoresVeic: [
+    {% for f in fornecedores %}
+    {id:"{{ f.id }}", nome:{{ f.razao_social | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

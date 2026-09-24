@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% block title %}{{ v.placa }}{% endblock %}
+{% block page_title %}{{ v.placa }} — {{ v.descricao or v.modelo }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('os.nova') }}?veiculo={{ v.id }}" class="btn btn-primary btn-sm">+ Nova OS</a>
+  <a href="{{ url_for('veiculos.editar', id=v.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+  <a href="{{ url_for('veiculos.plano_pdf', id=v.id) }}" class="btn btn-secondary btn-sm" target="_blank">⬇ Plano PDF</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- STATUS BAR -->
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px;">
+  {% if v.status == 'ativo' %}
+    <span class="badge badge-verde" style="font-size:13px; padding:5px 14px;">◉ Ativo</span>
+  {% elif v.status == 'manutencao' %}
+    <span class="badge badge-laranja" style="font-size:13px; padding:5px 14px;">◉ Em manutenção</span>
+  {% else %}
+    <span class="badge badge-cinza" style="font-size:13px; padding:5px 14px;">{{ v.status }}</span>
+  {% endif %}
+  {% if v.tipo_propriedade == 'locado' %}
+    <span class="badge badge-azul" style="font-size:13px; padding:5px 14px;">Locado</span>
+  {% else %}
+    <span class="badge badge-cinza" style="font-size:13px; padding:5px 14px;">Próprio</span>
+  {% endif %}
+  {% for a in alertas %}
+    <span class="badge badge-vermelho" style="font-size:12px; padding:5px 12px;">⚠ {{ a.titulo }}</span>
+  {% endfor %}
+</div>
+
+<div class="grid-2" style="margin-bottom:20px;">
+
+  <!-- INFO PRINCIPAL -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Dados do veículo</span></div>
+    <div class="card-body">
+      <table style="font-size:13px;">
+        <tr><td style="color:var(--cinza-500); padding:5px 0; width:140px;">Placa</td>
+            <td class="mono" style="font-weight:600; font-size:15px;">{{ v.placa }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Descrição</td>
+            <td>{{ v.descricao or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Marca / Modelo</td>
+            <td>{{ v.marca }} {{ v.modelo }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Ano</td>
+            <td>{{ v.ano_fabricacao }}/{{ v.ano_modelo }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Chassi</td>
+            <td class="mono text-small">{{ v.chassi or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">RENAVAM</td>
+            <td class="mono text-small">{{ v.renavam or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Tipo</td>
+            <td>{{ v.tipo_veiculo or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Município base</td>
+            <td>{{ v.municipio_base or '—' }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- KM + DOCUMENTAÇÃO -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="card" style="text-align:center; padding:24px;">
+      <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--cinza-500); margin-bottom:6px;">{% if v.tipo_veiculo in ['Trator','Retroescavadeira','PC','Escavadeira','Motoniveladora','Pá carregadeira','Compactador'] %}Horímetro atual{% else %}Odômetro atual{% endif %}</div>
+      <div style="font-size:42px; font-weight:600; color:var(--laranja); font-family:var(--mono); letter-spacing:-.02em;">
+        {{ '{:,}'.format(v.km_atual).replace(',', '.') }}
+      </div>
+      <div style="font-size:13px; color:var(--cinza-400);">km</div>
+      <form method="POST" action="{{ url_for('veiculos.atualizar_km', id=v.id) }}" style="margin-top:16px; display:flex; gap:8px; justify-content:center;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="number" name="km_novo" placeholder="Novo km" style="width:140px;" min="{{ v.km_atual }}" required>
+        <button type="submit" class="btn btn-primary btn-sm">Atualizar</button>
+      </form>
+    </div>
+
+    <!-- DOCUMENTAÇÃO RÁPIDA -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Documentação</span></div>
+      <div class="card-body" style="padding:14px 22px;">
+        {% macro doc_row(nome, venc, status, link_url, add_url) %}
+        <div style="display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--cinza-50);">
+          <div style="flex:1;">
+            <div style="font-size:13px; font-weight:500;">{{ nome }}</div>
+            {% if venc %}
+              {% set dias = (venc - hoje).days %}
+              <div style="font-size:11px; color:{% if dias < 0 %}var(--vermelho){% elif dias < 30 %}var(--laranja){% else %}var(--cinza-400){% endif %};">
+                {{ venc.strftime('%d/%m/%Y') }}
+                {% if dias < 0 %}(vencido){% elif dias < 30 %}({{ dias }}d){% endif %}
+              </div>
+            {% else %}
+              <div style="font-size:11px; color:var(--cinza-300);">não cadastrado</div>
+            {% endif %}
+          </div>
+          {% if link_url %}
+            <a href="{{ link_url }}" target="_blank" class="btn btn-secondary btn-sm btn-icon" title="Abrir documento">↗</a>
+          {% endif %}
+          <a href="{{ add_url }}" class="btn btn-secondary btn-sm btn-icon" title="Editar">✎</a>
+        </div>
+        {% endmacro %}
+
+        {{ doc_row('CRLV',
+           v.crlv.data_vencimento if v.crlv else none,
+           v.crlv.status if v.crlv else none,
+           v.crlv.link_documento if v.crlv else none,
+           url_for('documentos.crlv', veiculo_id=v.id)) }}
+
+        {{ doc_row('Laudo acústico',
+           v.laudo_atual.data_vencimento if v.laudo_atual else none,
+           v.laudo_atual.resultado if v.laudo_atual else none,
+           v.laudo_atual.link_documento if v.laudo_atual else none,
+           url_for('documentos.laudo', veiculo_id=v.id)) }}
+
+        {{ doc_row('Tacógrafo (calibração)',
+           v.tacografo_atual.data_proxima_calibracao if v.tacografo_atual else none,
+           v.tacografo_atual.status if v.tacografo_atual else none,
+           v.tacografo_atual.link_certificado if v.tacografo_atual else none,
+           url_for('documentos.tacografo', veiculo_id=v.id)) }}
+
+        {{ doc_row('Seguro',
+           v.seguro_ativo.data_vencimento if v.seguro_ativo else none,
+           v.seguro_ativo.status if v.seguro_ativo else none,
+           v.seguro_ativo.link_apolice if v.seguro_ativo else none,
+           url_for('documentos.seguro', veiculo_id=v.id)) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOTORISTA + CONTRATOS -->
+<div class="grid-2" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Motorista principal</span>
+    </div>
+    <div class="card-body">
+      {% set mot = v.motoristas.filter_by(ativo=True).first() %}
+      {% if mot %}
+        <div style="display:flex; gap:14px; align-items:center;">
+          <div style="width:44px; height:44px; border-radius:50%; background:var(--laranja-soft); color:var(--laranja); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+            {{ mot.nome[:2].upper() }}
+          </div>
+          <div>
+            <div style="font-weight:600;">{{ mot.nome }}</div>
+            <div style="font-size:12px; color:var(--cinza-500);">CNH {{ mot.cnh_categoria }} · {{ mot.cnh_numero or '—' }}</div>
+            <div style="font-size:12px; color:{% if mot.cnh_vencida %}var(--vermelho){% elif mot.cnh_validade and (mot.cnh_validade - hoje).days < 60 %}var(--laranja){% else %}var(--cinza-400){% endif %};">
+              Validade: {{ mot.cnh_validade.strftime('%d/%m/%Y') if mot.cnh_validade else '—' }}
+              {% if mot.cnh_vencida %}<strong>(VENCIDA)</strong>{% endif %}
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="text-muted text-small">Nenhum motorista vinculado.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Contratos</span>
+      <a href="{{ url_for('documentos.contrato', veiculo_id=v.id) }}" class="btn btn-secondary btn-sm">+ Novo</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% set contratos = v.contratos.filter_by(status='ativo').all() %}
+      {% if contratos %}
+        <table>
+          <thead><tr><th>Tipo</th><th>Nº</th><th>Valor/mês</th><th>Vencimento</th><th></th></tr></thead>
+          <tbody>
+          {% for c in contratos %}
+          <tr>
+            <td>{{ c.tipo_contrato }}</td>
+            <td class="mono text-small">{{ c.numero_contrato or '—' }}</td>
+            <td>{% if c.valor_mensal %}R$ {{ '{:,.2f}'.format(c.valor_mensal).replace(',', 'X').replace('.', ',').replace('X', '.') }}{% else %}—{% endif %}</td>
+            <td>{{ c.data_fim.strftime('%d/%m/%Y') if c.data_fim else 'Indeterminado' }}</td>
+            <td style="display:flex;gap:6px;">
+              {% if c.link_contrato %}
+                <a href="{{ c.link_contrato }}" target="_blank" class="btn btn-secondary btn-sm btn-icon">↗</a>
+              {% endif %}
+              <a href="{{ url_for('documentos.contrato_editar', veiculo_id=v.id, contrato_id=c.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+              <form method="POST" action="{{ url_for('documentos.contrato_encerrar', contrato_id=c.id) }}" style="display:inline;" onsubmit="return confirm('Encerrar este contrato?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm">Encerrar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state" style="padding:24px;">Nenhum contrato ativo.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- PLANOS DE MANUTENÇÃO -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">Planos de manutenção</span>
+    <a href="{{ url_for('manutencao.novo') }}?veiculo={{ v.id }}" class="btn btn-secondary btn-sm">+ Novo plano</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    {% if planos %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Serviço</th><th>Tipo</th><th>Gatilho</th><th>Próximo KM</th><th>Próxima Data</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for p in planos %}
+          {% set dias_para_data = (p.proxima_data - hoje).days if p.proxima_data else 999 %}
+          {% set km_para = (p.proximo_km - v.km_atual) if p.proximo_km else 999 %}
+          <tr>
+            <td style="font-weight:500;">{{ p.servico.nome }}</td>
+            <td><span class="badge {% if p.tipo == 'preventiva' %}badge-azul{% else %}badge-laranja{% endif %}">{{ p.tipo }}</span></td>
+            <td>{{ p.gatilho_tipo.upper() }}</td>
+            <td>
+              {% if p.proximo_km %}
+                <span style="color:{% if km_para <= 0 %}var(--vermelho){% elif km_para <= p.alerta_km_antes %}var(--laranja){% else %}var(--grafite){% endif %}">
+                  {{ '{:,}'.format(p.proximo_km).replace(',', '.') }} km
+                  {% if km_para <= p.alerta_km_antes %}<small>({{ km_para }} km restantes)</small>{% endif %}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if p.proxima_data %}
+                <span style="color:{% if dias_para_data <= 0 %}var(--vermelho){% elif dias_para_data <= p.alerta_dias_antes %}var(--laranja){% else %}var(--grafite){% endif %}">
+                  {{ p.proxima_data.strftime('%d/%m/%Y') }}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if (p.proximo_km and km_para <= 0) or (p.proxima_data and dias_para_data <= 0) %}
+                <span class="badge badge-vermelho">Vencido</span>
+              {% elif (p.proximo_km and km_para <= p.alerta_km_antes) or (p.proxima_data and dias_para_data <= p.alerta_dias_antes) %}
+                <span class="badge badge-laranja">Próximo</span>
+              {% else %}
+                <span class="badge badge-verde">Ok</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state">Nenhum plano cadastrado. <a href="{{ url_for('manutencao.novo') }}">Criar plano</a></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- HISTÓRICO DE OS -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Histórico de OS (últimas 10)</span>
+    <a href="{{ url_for('os.lista') }}?veiculo_id={{ v.id }}" class="btn btn-secondary btn-sm">Ver todas</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    {% if os_list %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Número</th><th>Tipo</th><th>Manutenção</th><th>Abertura</th><th>Status</th><th>Custo</th><th></th></tr></thead>
+        <tbody>
+          {% for o in os_list %}
+          <tr>
+            <td class="mono text-small"><a href="{{ url_for('os.detalhe', id=o.id) }}">{{ o.numero }}</a></td>
+            <td>{{ o.tipo_os }}</td>
+            <td>
+              <span class="badge {% if o.tipo_manutencao == 'corretiva' %}badge-vermelho{% elif o.tipo_manutencao == 'preventiva' %}badge-verde{% else %}badge-laranja{% endif %}">
+                {{ o.tipo_manutencao }}
+              </span>
+            </td>
+            <td>{{ o.data_abertura.strftime('%d/%m/%Y') }}</td>
+            <td>
+              {% if o.status == 'concluida' %}<span class="badge badge-verde">Concluída</span>
+              {% elif o.status == 'aberta' %}<span class="badge badge-laranja">Aberta</span>
+              {% elif o.status == 'em_execucao' %}<span class="badge badge-azul">Em execução</span>
+              {% else %}<span class="badge badge-cinza">{{ o.status }}</span>{% endif %}
+            </td>
+            <td>{% if o.custo_total %}R$ {{ '{:,.2f}'.format(o.custo_total).replace(',','X').replace('.', ',').replace('X','.') }}{% else %}—{% endif %}</td>
+            <td><a href="{{ url_for('os.detalhe', id=o.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state">Nenhuma OS encontrada para este veículo.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

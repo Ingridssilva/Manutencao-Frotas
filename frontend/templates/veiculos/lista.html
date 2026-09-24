@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Veículos{% endblock %}
+{% block page_title %}Frota{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('veiculos.novo') }}" class="btn btn-primary btn-sm">+ Novo Veículo</a>{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex; gap:12px; align-items:flex-end;">
+      <div class="form-group" style="margin:0; flex:1;"><label>Busca</label><input type="text" name="q" value="{{ q }}" placeholder="Placa ou descrição..."></div>
+      <div class="form-group" style="margin:0; min-width:160px;"><label>Status</label>
+        <select name="status" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          <option value="ativo" {% if status=='ativo' %}selected{% endif %}>Ativo</option>
+          <option value="manutencao" {% if status=='manutencao' %}selected{% endif %}>Manutenção</option>
+          <option value="inativo" {% if status=='inativo' %}selected{% endif %}>Inativo</option>
+        </select></div>
+      <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    </form>
+  </div>
+</div>
+<div class="vcard-grid">
+  {% for v in veiculos %}
+  <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="vcard">
+    <div class="vcard-placa">{{ v.placa }}</div>
+    <div class="vcard-desc">{{ v.descricao or (v.marca ~ ' ' ~ v.modelo) }}</div>
+    <div style="font-size:11px; color:var(--cinza-400); margin-bottom:10px;">{{ v.municipio_base or '—' }} · {{ '{:,}'.format(v.km_atual).replace(',','.') }} km</div>
+    <div class="vcard-status">
+      {% if v.status == 'ativo' %}<span class="badge badge-verde">Ativo</span>
+      {% elif v.status == 'manutencao' %}<span class="badge badge-laranja">Manutenção</span>
+      {% else %}<span class="badge badge-cinza">{{ v.status }}</span>{% endif %}
+      {% if v.tipo_propriedade == 'locado' %}<span class="badge badge-azul">Locado</span>{% endif %}
+    </div>
+  </a>
+  {% else %}
+  <div class="empty-state" style="grid-column:1/-1;">Nenhum veículo encontrado.</div>
+  {% endfor %}
+</div>
+{% endblock %}
