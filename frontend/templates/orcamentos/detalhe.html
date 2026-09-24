@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+{% block title %}{{ o.numero }}{% endblock %}
+{% block page_title %}{{ o.numero }}{% endblock %}
+{% block topbar_actions %}
+  {% if o.status in ('em_elaboracao', 'rascunho') %}
+    <a href="{{ url_for('orcamentos.editar', id=o.id) }}" class="btn btn-secondary btn-sm">✏️ Editar</a>
+    <a href="{{ url_for('orcamentos.nova_cotacao', id=o.id) }}" class="btn btn-primary btn-sm">+ Cotação</a>
+  {% endif %}
+  {% if o.status == 'aguardando_cotacao' %}
+    <a href="{{ url_for('orcamentos.nova_cotacao', id=o.id) }}" class="btn btn-secondary btn-sm">+ Nova Cotação</a>
+    <form method="POST" action="{{ url_for('orcamentos.solicitar', id=o.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-sm">Enviar para aprovação</button>
+    </form>
+  {% endif %}
+  {% if o.status == 'em_aprovacao' and current_user.pode_aprovar %}
+    <button onclick="document.getElementById('modal-rejeitar').style.display='flex'" class="btn btn-danger btn-sm">✕ Rejeitar</button>
+  {% endif %}
+  {% if o.status == 'aprovado' and oc %}
+    <a href="{{ url_for('orcamentos.detalhe_oc', oc_id=oc.id) }}" class="btn btn-primary btn-sm">📋 Ver OC {{ oc.numero }}</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- FLUXO VISUAL -->
+<div class="card" style="margin-bottom:20px; padding:20px 24px;">
+  <div style="display:flex; align-items:center; gap:0; overflow-x:auto;">
+    {% set etapas = [
+      ('em_elaboracao', 'Em Elaboração'),
+      ('aguardando_cotacao', 'Cotações'),
+      ('em_aprovacao', 'Em Aprovação'),
+      ('aprovado', 'Aprovado'),
+    ] %}
+    {% set status_map = {
+      'em_elaboracao': 0, 'rascunho': 0,
+      'aguardando_cotacao': 1,
+      'em_aprovacao': 2,
+      'aprovado': 3, 'reprovado': 3, 'cancelado': 3,
+    } %}
+    {% set etapa_atual = status_map.get(o.status, 0) %}
+    {% for slug, nome in etapas %}
+    {% set ei = loop.index0 %}
+    <div style="display:flex; align-items:center; flex:1; min-width:100px;">
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex:1;">
+        <div style="width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;
+          {% if ei < etapa_atual %}background:var(--verde, #27ae60); color:white;
+          {% elif ei == etapa_atual %}background:var(--laranja, #F7931E); color:white;
+          {% else %}background:var(--cinza-100); color:var(--cinza-400);{% endif %}">
+          {% if ei < etapa_atual %}✓{% else %}{{ ei + 1 }}{% endif %}
+        </div>
+        <span style="font-size:11px; font-weight:600; color:{% if ei <= etapa_atual %}var(--cinza-700){% else %}var(--cinza-400){% endif %}; white-space:nowrap;">{{ nome }}</span>
+      </div>
+      {% if not loop.last %}
+      <div style="height:2px; flex:1; min-width:20px; background:{% if ei < etapa_atual %}var(--verde){% else %}var(--cinza-100){% endif %};"></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if oc %}
+    <div style="height:2px; flex:1; min-width:20px; background:var(--verde);"></div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:100px;">
+      <div style="width:32px; height:32px; border-radius:50%; background:var(--azul, #2980b9); color:white; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;">OC</div>
+      <span style="font-size:11px; font-weight:600; color:var(--cinza-700);">Ordem de Compra</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <!-- DADOS GERAIS -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Dados do orçamento</span></div>
+    <div class="card-body">
+      <table style="font-size:13px; width:100%;">
+        <tr><td style="color:var(--cinza-500); padding:5px 0; width:150px;">Número</td>
+            <td class="mono" style="font-weight:700; font-size:15px;">{{ o.numero }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Tipo Solicitação</td>
+            <td>
+              {% if o.tipo_solicitacao == 'aquisicao_peca_os' %}
+                <span class="badge badge-laranja">🔩 Peça para OS</span>
+              {% elif o.tipo_solicitacao == 'compra_peca_sem_os' %}
+                <span class="badge badge-verde">📦 Compra de Peça sem OS</span>
+              {% else %}
+                <span class="badge badge-azul">🔧 Aquisição de Serviço</span>
+              {% endif %}
+            </td></tr>
+        {% if o.os_vinculada %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">OS Vinculada</td>
+            <td>
+              <a href="{{ url_for('os.detalhe', id=o.os_vinculada.id) }}" style="color:var(--laranja); font-weight:600; text-decoration:none;">
+                {{ o.os_vinculada.numero }}
+              </a>
+              <span style="color:var(--cinza-500); font-size:12px;"> — {{ o.os_vinculada.veiculo.placa }}</span>
+            </td></tr>
+        {% endif %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Veículo</td>
+            <td><a href="{{ url_for('veiculos.detalhe', id=o.veiculo_id) }}" style="color:var(--laranja); font-weight:600; text-decoration:none;">{{ o.veiculo.placa }}</a></td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Tipo OS</td>
+            <td><span class="badge {% if o.tipo_os == 'interna' %}badge-azul{% else %}badge-laranja{% endif %}">{{ o.tipo_os }}</span></td></tr>
+        {% if o.fornecedor %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Fornecedor pref.</td>
+            <td>{{ o.fornecedor.razao_social }}</td></tr>
+        {% endif %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Solicitado por</td>
+            <td>{{ o.solicitante.nome }} em {{ o.data_solicitacao.strftime('%d/%m/%Y') }}</td></tr>
+        {% if o.aprovador %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Aprovado por</td>
+            <td>{{ o.aprovador.nome }} em {{ o.data_aprovacao.strftime('%d/%m/%Y') }}</td></tr>
+        {% endif %}
+        {% if o.motivo_rejeicao %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Motivo rejeição</td>
+            <td style="color:var(--vermelho);">{{ o.motivo_rejeicao }}</td></tr>
+        {% endif %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Status</td>
+            <td>
+              {% if o.status in ('em_elaboracao', 'rascunho') %}<span class="badge badge-cinza">Em Elaboração</span>
+              {% elif o.status == 'aguardando_cotacao' %}<span class="badge badge-laranja">Aguardando Cotação</span>
+              {% elif o.status == 'em_aprovacao' %}<span class="badge badge-laranja">Em Aprovação</span>
+              {% elif o.status == 'aprovado' %}<span class="badge badge-verde">Aprovado</span>
+              {% elif o.status == 'reprovado' %}<span class="badge badge-vermelho">Reprovado</span>
+              {% elif o.status == 'cancelado' %}<span class="badge badge-cinza">Cancelado</span>
+              {% else %}<span class="badge badge-cinza">{{ o.status }}</span>{% endif %}
+            </td></tr>
+      </table>
+      {% if o.descricao %}
+      <hr class="divider">
+      <div style="font-size:13px; color:var(--cinza-700);">{{ o.descricao }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RESUMO FINANCEIRO -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="card" style="text-align:center; padding:28px;">
+      <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--cinza-500); margin-bottom:8px;">Valor estimado</div>
+      <div style="font-size:38px; font-weight:600; color:var(--laranja); font-family:var(--mono);">
+        R$ {{ '{:,.2f}'.format(o.valor_total_estimado or 0).replace(',','X').replace('.', ',').replace('X','.') }}
+      </div>
+      <div style="font-size:13px; color:var(--cinza-400); margin-top:6px;">{{ o.itens|length }} iten{{ 's' if o.itens|length != 1 }}</div>
+    </div>
+
+    {% if oc %}
+    <div class="card" style="text-align:center; padding:20px; border-left:4px solid var(--azul, #2980b9);">
+      <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--cinza-500); margin-bottom:6px;">Ordem de Compra Gerada</div>
+      <div style="font-size:20px; font-weight:700; color:var(--azul, #2980b9); font-family:var(--mono);">{{ oc.numero }}</div>
+      <div style="margin-top:8px;">
+        <span class="badge badge-azul">{{ oc.status_label }}</span>
+      </div>
+      <a href="{{ url_for('orcamentos.detalhe_oc', oc_id=oc.id) }}" class="btn btn-secondary btn-sm" style="margin-top:12px;">Ver detalhes da OC →</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- COTAÇÕES -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">Cotações de Fornecedores</span>
+    {% if o.status in ('em_elaboracao', 'rascunho', 'aguardando_cotacao') %}
+    <a href="{{ url_for('orcamentos.nova_cotacao', id=o.id) }}" class="btn btn-primary btn-sm">+ Adicionar Cotação</a>
+    {% endif %}
+  </div>
+  <div class="card-body" style="padding:0;">
+    {% if o.cotacoes %}
+    {% set menor_valor = o.cotacoes | map(attribute='valor') | map('float') | min %}
+
+    <style>
+    .cot-table { width:100%; border-collapse:collapse; }
+    .cot-table th, .cot-table td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--cinza-100); font-size:13px; }
+    .cot-table th { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--cinza-500); background:var(--cinza-50); }
+    .cot-cards { display:none; }
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr !important; }
+    }
+
+    @media (max-width: 700px) {
+      .cot-table { display:none; }
+      .cot-cards { display:flex; flex-direction:column; gap:12px; padding:12px; }
+      .cot-card { background:var(--cinza-50); border:1px solid var(--cinza-200); border-radius:12px; padding:14px 16px; }
+      .cot-card.aprovada { border-left:4px solid var(--verde); background:rgba(39,174,96,0.06); }
+      .cot-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:8px; }
+      .cot-card-nome { font-weight:700; font-size:14px; }
+      .cot-card-valor { font-family:var(--mono); font-weight:800; font-size:20px; color:var(--laranja); white-space:nowrap; }
+      .cot-card-row { display:flex; justify-content:space-between; font-size:12px; color:var(--cinza-600); margin-bottom:4px; gap:8px; }
+      .cot-card-row span:first-child { font-weight:600; color:var(--cinza-500); flex-shrink:0; }
+      .cot-card-actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+      .cot-card-actions .btn { flex:1; text-align:center; min-width:100px; justify-content:center; }
+    }
+    </style>
+
+    <!-- TABELA DESKTOP -->
+    <table class="cot-table">
+      <thead>
+        <tr>
+          <th>Fornecedor</th><th>Valor</th><th>Prazo</th>
+          <th>Condições</th><th>Anexo</th><th>Status</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cot in o.cotacoes | sort(attribute='valor') %}
+        <tr style="{% if cot.status == 'aprovada' %}background:rgba(39,174,96,0.07);{% endif %}">
+          <td style="font-weight:600;">
+            {{ cot.fornecedor.razao_social }}
+            {% if cot.valor | float == menor_valor %}<span style="color:var(--verde);font-size:11px;margin-left:4px;">★ menor</span>{% endif %}
+          </td>
+          <td style="font-weight:700;font-family:var(--mono);">R$ {{ '{:,.2f}'.format(cot.valor).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          <td>{{ cot.prazo_dias ~ ' dias' if cot.prazo_dias else '—' }}</td>
+          <td style="font-size:12px;color:var(--cinza-600);">{{ cot.condicoes or '—' }}</td>
+          <td>
+            {% if cot.anexo_url %}<a href="{{ cot.anexo_url }}" target="_blank" class="btn btn-secondary btn-sm">📎 Ver</a>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if cot.status == 'aprovada' %}<span class="badge badge-verde">✓ Aprovada</span>{% if cot.justificativa %}<div style="font-size:11px;color:var(--cinza-500);margin-top:2px;">Com justificativa</div>{% endif %}
+            {% elif cot.status == 'recusada' %}<span class="badge badge-cinza">Recusada</span>
+            {% else %}<span class="badge badge-laranja">Pendente</span>{% endif %}
+          </td>
+          <td style="display:flex;gap:6px;align-items:center;">
+            {% if cot.status == 'pendente' and o.status in ('aguardando_cotacao', 'em_aprovacao') and current_user.pode_aprovar %}
+            <button onclick="abrirModalAprovar({{ cot.id }}, '{{ cot.fornecedor.razao_social }}', {{ cot.valor | float }}, {{ menor_valor | float }})" class="btn btn-success btn-sm">✓ Aprovar</button>
+            {% endif %}
+            {% if cot.status == 'pendente' and o.status in ('em_elaboracao', 'rascunho', 'aguardando_cotacao') %}
+            <form method="POST" action="{{ url_for('orcamentos.excluir_cotacao', id=o.id, cot_id=cot.id) }}" onsubmit="return confirm('Excluir esta cotação?')" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm btn-icon">🗑</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- CARDS MOBILE -->
+    <div class="cot-cards">
+      {% for cot in o.cotacoes | sort(attribute='valor') %}
+      <div class="cot-card {% if cot.status == 'aprovada' %}aprovada{% endif %}">
+        <div class="cot-card-header">
+          <div>
+            <div class="cot-card-nome">{{ cot.fornecedor.razao_social }}
+              {% if cot.valor | float == menor_valor %}<span style="color:var(--verde);font-size:11px;"> ★ menor</span>{% endif %}
+            </div>
+            <div style="margin-top:4px;">
+              {% if cot.status == 'aprovada' %}<span class="badge badge-verde">✓ Aprovada</span>
+              {% elif cot.status == 'recusada' %}<span class="badge badge-cinza">Recusada</span>
+              {% else %}<span class="badge badge-laranja">Pendente</span>{% endif %}
+            </div>
+          </div>
+          <div class="cot-card-valor">R$ {{ '{:,.2f}'.format(cot.valor).replace(',','X').replace('.', ',').replace('X','.') }}</div>
+        </div>
+        {% if cot.prazo_dias %}<div class="cot-card-row"><span>Prazo</span><span>{{ cot.prazo_dias }} dias</span></div>{% endif %}
+        {% if cot.condicoes %}<div class="cot-card-row"><span>Condições</span><span>{{ cot.condicoes }}</span></div>{% endif %}
+        {% if cot.justificativa %}<div class="cot-card-row"><span>Justificativa</span><span>{{ cot.justificativa }}</span></div>{% endif %}
+        <div class="cot-card-actions">
+          {% if cot.anexo_url %}
+          <a href="{{ cot.anexo_url }}" target="_blank" class="btn btn-secondary btn-sm">📎 Ver proposta</a>
+          {% endif %}
+          {% if cot.status == 'pendente' and o.status in ('aguardando_cotacao', 'em_aprovacao') and current_user.pode_aprovar %}
+          <button onclick="abrirModalAprovar({{ cot.id }}, '{{ cot.fornecedor.razao_social }}', {{ cot.valor | float }}, {{ menor_valor | float }})" class="btn btn-success btn-sm">✓ Aprovar</button>
+          {% endif %}
+          {% if cot.status == 'pendente' and o.status in ('em_elaboracao', 'rascunho', 'aguardando_cotacao') %}
+          <form method="POST" action="{{ url_for('orcamentos.excluir_cotacao', id=o.id, cot_id=cot.id) }}" onsubmit="return confirm('Excluir esta cotação?')" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-sm">🗑 Excluir</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      Nenhuma cotação cadastrada ainda.
+      {% if o.status in ('em_elaboracao', 'rascunho') %}
+      <div style="margin-top:12px;">
+        <a href="{{ url_for('orcamentos.nova_cotacao', id=o.id) }}" class="btn btn-primary btn-sm">+ Adicionar primeira cotação</a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ITENS DO ORÇAMENTO -->
+<div class="card">
+  <div class="card-header"><span class="card-title">Itens do orçamento</span></div>
+  <div class="card-body" style="padding:0;overflow-x:auto;">
+    {% if o.itens %}
+    {% set pode_remover_item = o.status not in ('em_aprovacao', 'aprovado', 'cancelado', 'reprovado') %}
+    <table style="min-width:480px;">
+      <thead><tr><th>Tipo</th><th>Descrição</th><th>Qtd</th><th>Valor unit.</th><th>Total</th>{% if pode_remover_item %}<th style="width:60px;"></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for i in o.itens %}
+        <tr>
+          <td><span class="badge {% if i.tipo_item == 'servico' %}badge-azul{% else %}badge-verde{% endif %}">{{ i.tipo_item }}</span></td>
+          <td>{{ (i.servico.nome if i.servico else None) or (i.material.nome if i.material else None) or i.descricao_livre or '—' }}</td>
+          <td>{{ i.quantidade }}</td>
+          <td>R$ {{ '{:,.2f}'.format(i.valor_unitario).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(i.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          {% if pode_remover_item %}
+          <td>
+            <form method="POST"
+                  action="{{ url_for('orcamentos.excluir_item', id=o.id, item_id=i.id) }}"
+                  onsubmit="return confirm('Remover este item do orçamento?')"
+                  style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm btn-icon"
+                      title="Remover item">🗑</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state">Nenhum item cadastrado.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- MODAL APROVAR COTAÇÃO -->
+<div id="modal-aprovar-cot" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; align-items:center; justify-content:center;">
+  <div style="background:var(--branco); border-radius:16px; padding:32px; width:100%; max-width:460px; margin:20px;">
+    <h3 style="font-size:18px; font-weight:600; margin-bottom:4px;">Aprovar Cotação</h3>
+    <p id="modal-cot-info" style="color:var(--cinza-500); font-size:13px; margin-bottom:20px;"></p>
+    <form method="POST" id="form-aprovar-cot" action="">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" id="grp-justificativa" style="display:none;">
+        <label style="color:var(--laranja); font-weight:600;">⚠️ Justificativa obrigatória *</label>
+        <p style="font-size:12px; color:var(--cinza-500); margin-bottom:8px;">Esta proposta não é a de menor valor. Informe o motivo da escolha.</p>
+        <textarea name="justificativa" rows="3" placeholder="Ex: Fornecedor tem melhor prazo e histórico de qualidade..."></textarea>
+      </div>
+      <div id="grp-just-opcional" style="">
+        <div class="form-group">
+          <label>Justificativa (opcional)</label>
+          <textarea name="justificativa" rows="2" placeholder="Observações sobre a escolha..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:flex-end;">
+        <button type="button" onclick="document.getElementById('modal-aprovar-cot').style.display='none'" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-success">✓ Confirmar Aprovação</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL REJEITAR ORÇAMENTO -->
+<div id="modal-rejeitar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; align-items:center; justify-content:center;">
+  <div style="background:var(--branco); border-radius:16px; padding:32px; width:100%; max-width:420px; margin:20px;">
+    <h3 style="font-size:18px; font-weight:600; margin-bottom:16px;">Rejeitar orçamento</h3>
+    <form method="POST" action="{{ url_for('orcamentos.rejeitar', id=o.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label>Motivo da rejeição *</label>
+        <textarea name="motivo_rejeicao" rows="3" required placeholder="Explique o motivo..."></textarea>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:flex-end;">
+        <button type="button" onclick="document.getElementById('modal-rejeitar').style.display='none'" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-danger">Confirmar rejeição</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function abrirModalAprovar(cotId, fornecedor, valor, menorValor) {
+  const modal    = document.getElementById('modal-aprovar-cot');
+  const form     = document.getElementById('form-aprovar-cot');
+  const info     = document.getElementById('modal-cot-info');
+  const grpObr   = document.getElementById('grp-justificativa');
+  const grpOpc   = document.getElementById('grp-just-opcional');
+
+  form.action = '/orcamentos/{{ o.id }}/cotacoes/' + cotId + '/aprovar';
+
+  const valorFmt = valor.toLocaleString('pt-BR', {minimumFractionDigits:2, style:'currency', currency:'BRL'});
+  info.textContent = fornecedor + ' — ' + valorFmt;
+
+  if (valor > menorValor + 0.01) {
+    grpObr.style.display = '';
+    grpOpc.style.display = 'none';
+    grpObr.querySelector('textarea').required = true;
+  } else {
+    grpObr.style.display = 'none';
+    grpOpc.style.display = '';
+    if (grpObr.querySelector('textarea')) grpObr.querySelector('textarea').required = false;
+  }
+
+  modal.style.display = 'flex';
+}
+</script>
+{% endblock %}

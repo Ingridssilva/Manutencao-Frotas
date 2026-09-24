@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+{% block title %}{{ oc.numero }}{% endblock %}
+{% block page_title %}{{ oc.numero }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('orcamentos.detalhe', id=oc.orcamento_id) }}" class="btn btn-secondary btn-sm">← Orçamento {{ oc.orcamento.numero }}</a>
+  <a href="{{ url_for('orcamentos.lista_oc') }}" class="btn btn-secondary btn-sm">Lista de OCs</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── STEPPER DE STATUS ──────────────────────────────────────────────────────── #}
+{% set status_oc = [
+  ('gerada', 'Gerada'),
+  ('enviada_fornecedor', 'Enviada ao Fornecedor'),
+  ('em_aquisicao', 'Em Aquisição'),
+  ('finalizada', 'Finalizada'),
+] %}
+{% set idx_map = {'gerada':0,'enviada_fornecedor':1,'em_aquisicao':2,'finalizada':3,'cancelada':3} %}
+{% set idx_atual = idx_map.get(oc.status, 0) %}
+
+<div class="card" style="margin-bottom:20px; padding:20px 24px;">
+  <div style="display:flex; align-items:center; gap:0; overflow-x:auto;">
+    {% for slug, nome in status_oc %}
+    {% set ei = loop.index0 %}
+    <div style="display:flex; align-items:center; flex:1; min-width:90px;">
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex:1;">
+        <div style="width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;
+          {% if oc.status == 'cancelada' %}background:var(--vermelho); color:white;
+          {% elif ei < idx_atual %}background:var(--verde); color:white;
+          {% elif ei == idx_atual %}background:var(--azul, #2980b9); color:white;
+          {% else %}background:var(--cinza-100); color:var(--cinza-400);{% endif %}">
+          {% if oc.status != 'cancelada' and ei < idx_atual %}✓{% else %}{{ ei + 1 }}{% endif %}
+        </div>
+        <span style="font-size:11px; font-weight:600; color:{% if ei <= idx_atual %}var(--cinza-700){% else %}var(--cinza-400){% endif %}; white-space:nowrap; text-align:center;">{{ nome }}</span>
+      </div>
+      {% if not loop.last %}
+      <div style="height:2px; flex:1; min-width:20px; background:{% if ei < idx_atual %}var(--verde){% else %}var(--cinza-100){% endif %};"></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── LINHA PRINCIPAL: DADOS + VALOR + AÇÕES ────────────────────────────────── #}
+<div class="grid-2" style="margin-bottom:20px;">
+
+  {# ── COLUNA ESQUERDA: dados da OC ── #}
+  <div class="card">
+    <div class="card-header"><span class="card-title">Dados da Ordem de Compra</span></div>
+    <div class="card-body">
+      <table style="font-size:13px; width:100%;">
+        <tr><td style="color:var(--cinza-500); padding:5px 0; width:150px;">Número OC</td>
+            <td class="mono" style="font-weight:700; font-size:16px; color:var(--azul, #2980b9);">{{ oc.numero }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Orçamento</td>
+            <td><a href="{{ url_for('orcamentos.detalhe', id=oc.orcamento_id) }}" style="color:var(--laranja); font-weight:600; text-decoration:none;">{{ oc.orcamento.numero }}</a></td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Fornecedor</td>
+            <td style="font-weight:600;">{{ oc.fornecedor.razao_social }}</td></tr>
+        {% if oc.fornecedor.cnpj %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">CNPJ</td>
+            <td class="mono">{{ oc.fornecedor.cnpj }}</td></tr>
+        {% endif %}
+        {% if oc.fornecedor.email %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">E-mail Forn.</td>
+            <td><a href="mailto:{{ oc.fornecedor.email }}" style="color:var(--azul,#2980b9);">{{ oc.fornecedor.email }}</a></td></tr>
+        {% endif %}
+        {% if oc.os %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">OS Vinculada</td>
+            <td><a href="{{ url_for('os.detalhe', id=oc.os.id) }}" style="color:var(--laranja); font-weight:600; text-decoration:none;">{{ oc.os.numero }}</a></td></tr>
+        {% endif %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Prazo</td>
+            <td>{{ oc.prazo_dias ~ ' dias' if oc.prazo_dias else '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Condições</td>
+            <td>{{ oc.condicoes or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Gerada por</td>
+            <td>{{ oc.gerador.nome if oc.gerador else '—' }} em {{ oc.gerada_em.strftime('%d/%m/%Y %H:%M') if oc.gerada_em else '—' }}</td></tr>
+        {% if oc.enviada_em %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Enviada em</td>
+            <td>{{ oc.enviada_em.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+        {% endif %}
+        {% if oc.finalizada_em %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Finalizada em</td>
+            <td>{{ oc.finalizada_em.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+        {% endif %}
+        {# Nota Fiscal #}
+        {% if oc.nota_fiscal_url %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Nota Fiscal</td>
+            <td>
+              <a href="{{ oc.nota_fiscal_url }}" target="_blank" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                {{ oc.nota_fiscal_nome or 'Ver NF' }}
+              </a>
+            </td></tr>
+        {% endif %}
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Status</td>
+            <td>
+              <span class="badge {% if oc.status == 'finalizada' %}badge-verde{% elif oc.status == 'cancelada' %}badge-vermelho{% else %}badge-azul{% endif %}">
+                {{ oc.status_label }}
+              </span>
+            </td></tr>
+      </table>
+      {% if oc.observacoes %}
+      <hr class="divider">
+      <div style="font-size:13px; color:var(--cinza-700);">{{ oc.observacoes }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── COLUNA DIREITA: valor, PDF, ações ── #}
+  <div style="display:flex; flex-direction:column; gap:16px;">
+
+    {# VALOR TOTAL + BOTÃO PDF #}
+    <div class="card" style="text-align:center; padding:28px 24px 20px;">
+      <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--cinza-500); margin-bottom:8px;">Valor Total da OC</div>
+      <div style="font-size:40px; font-weight:600; color:var(--azul, #2980b9); font-family:var(--mono); margin-bottom:20px;">
+        R$ {{ '{:,.2f}'.format(oc.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}
+      </div>
+
+      {# ── BLOCO PDF ── #}
+      <div style="border-top:1px solid var(--cinza-100); padding-top:18px; margin-top:4px;">
+        <div style="font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--cinza-500); margin-bottom:10px;">
+          📄 Documento para o Fornecedor
+        </div>
+        <a href="{{ url_for('orcamentos.pdf_oc', oc_id=oc.id) }}"
+           target="_blank"
+           class="btn btn-primary"
+           style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-size:13px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10,9 9,9 8,9"/>
+          </svg>
+          Gerar PDF da Ordem de Compra
+        </a>
+        <div style="font-size:11px; color:var(--cinza-400); margin-top:8px;">
+          Abre em nova aba · pronto para imprimir ou enviar por e-mail ao fornecedor
+        </div>
+      </div>
+    </div>
+
+    {# ATUALIZAR STATUS #}
+    {% if oc.status != 'finalizada' and oc.status != 'cancelada' %}
+    <div class="card" style="padding:20px;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--laranja)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        Avançar Status da OC
+      </div>
+      <form method="POST" action="{{ url_for('orcamentos.atualizar_status_oc', oc_id=oc.id) }}" enctype="multipart/form-data" id="form-status-oc">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>Novo status</label>
+          <select name="status" id="sel-status-oc">
+            {% if oc.status == 'gerada' %}
+            <option value="enviada_fornecedor">✉ Enviada ao Fornecedor</option>
+            <option value="cancelada">✕ Cancelar OC</option>
+            {% elif oc.status == 'enviada_fornecedor' %}
+            <option value="em_aquisicao">🔄 Em Aquisição</option>
+            <option value="cancelada">✕ Cancelar OC</option>
+            {% elif oc.status == 'em_aquisicao' %}
+            <option value="finalizada">✅ Finalizada (mercadoria recebida)</option>
+            <option value="cancelada">✕ Cancelar OC</option>
+            {% endif %}
+          </select>
+        </div>
+
+        {# UPLOAD DA NOTA FISCAL — aparece só ao finalizar #}
+        <div id="grp-nf" style="display:none; margin-top:4px;">
+          <div style="background:var(--cinza-50,#F9FAFB); border:1px solid var(--cinza-200); border-radius:8px; padding:14px 16px;">
+            <div style="font-size:12px; font-weight:700; color:var(--cinza-700); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--verde,#27ae60)" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              Nota Fiscal (PDF)
+            </div>
+            <label for="nf-input" id="nf-label"
+              style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:18px 12px;
+                     border:2px dashed var(--cinza-300); border-radius:8px; cursor:pointer;
+                     transition:border-color .2s, background .2s;"
+              ondragover="event.preventDefault(); this.style.borderColor='var(--laranja)'; this.style.background='#fff8f0';"
+              ondragleave="this.style.borderColor='var(--cinza-300)'; this.style.background='';"
+              ondrop="handleNfDrop(event)">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--cinza-400)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span id="nf-label-txt" style="font-size:12px; color:var(--cinza-500); text-align:center;">
+                Clique ou arraste o <strong>PDF da NF</strong> aqui
+              </span>
+              <span style="font-size:11px; color:var(--cinza-400);">Apenas PDF · máx. recomendado 10 MB</span>
+            </label>
+            <input type="file" name="nota_fiscal_arquivo" id="nf-input"
+                   accept="application/pdf,.pdf"
+                   style="display:none;"
+                   onchange="onNfChange(this)">
+            <div id="nf-preview" style="display:none; margin-top:10px; padding:10px 12px;
+              background:#fff; border:1px solid var(--cinza-200); border-radius:6px;
+              display:flex; align-items:center; gap:10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--vermelho,#e74c3c)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              <span id="nf-nome" style="font-size:12px; font-weight:600; color:var(--cinza-700); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+              <button type="button" onclick="limparNf()" style="background:none; border:none; cursor:pointer; color:var(--cinza-400); font-size:16px; line-height:1; padding:2px;">✕</button>
+            </div>
+            <div style="font-size:11px; color:var(--cinza-400); margin-top:8px; text-align:center;">
+              A NF será salva no SharePoint e vinculada a esta OC
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:14px;">Confirmar</button>
+      </form>
+    </div>
+    {% endif %}
+
+    {# UPLOAD AVULSO DA NF — para OC em aquisição que não tem NF ainda #}
+    {% if oc.status == 'em_aquisicao' and not oc.nota_fiscal_url %}
+    <div class="card" style="padding:20px;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cinza-500)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+        Anexar Nota Fiscal
+      </div>
+      <div style="font-size:12px; color:var(--cinza-500); margin-bottom:14px;">
+        Já recebeu a NF? Anexe antes de finalizar a OC.
+      </div>
+      <form method="POST" action="{{ url_for('orcamentos.upload_nf_oc', oc_id=oc.id) }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="nf-avulso-input" id="nf-avulso-label"
+          style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 12px;
+                 border:2px dashed var(--cinza-300); border-radius:8px; cursor:pointer;
+                 transition:border-color .2s, background .2s;"
+          ondragover="event.preventDefault(); this.style.borderColor='var(--laranja)'; this.style.background='#fff8f0';"
+          ondragleave="this.style.borderColor='var(--cinza-300)'; this.style.background='';"
+          ondrop="handleNfAvulsoDrop(event)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cinza-400)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="nf-avulso-label-txt" style="font-size:12px; color:var(--cinza-500); text-align:center;">
+            Clique ou arraste o <strong>PDF da NF</strong>
+          </span>
+        </label>
+        <input type="file" name="nota_fiscal_arquivo" id="nf-avulso-input"
+               accept="application/pdf,.pdf"
+               style="display:none;"
+               onchange="onNfAvulsoChange(this)">
+        <div id="nf-avulso-preview" style="display:none; margin-top:10px; padding:10px 12px;
+          background:#fff; border:1px solid var(--cinza-200); border-radius:6px;
+          align-items:center; gap:10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--vermelho,#e74c3c)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <span id="nf-avulso-nome" style="font-size:12px; font-weight:600; color:var(--cinza-700); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+        </div>
+        <button type="submit" id="btn-upload-nf-avulso" class="btn btn-secondary" style="width:100%; margin-top:12px;" disabled>
+          Enviar Nota Fiscal
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
+  </div>{# fim coluna direita #}
+</div>
+
+{# ── COTAÇÃO APROVADA ──────────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">Cotação Aprovada — {{ oc.cotacao.fornecedor.razao_social }}</span>
+  </div>
+  <div class="card-body">
+    <table style="font-size:13px; width:100%; max-width:560px;">
+      <tr><td style="color:var(--cinza-500); padding:4px 0; width:140px;">Fornecedor</td>
+          <td style="font-weight:600;">{{ oc.cotacao.fornecedor.razao_social }}</td></tr>
+      <tr><td style="color:var(--cinza-500); padding:4px 0;">Valor proposto</td>
+          <td style="font-weight:700; font-family:var(--mono);">R$ {{ '{:,.2f}'.format(oc.cotacao.valor).replace(',','X').replace('.', ',').replace('X','.') }}</td></tr>
+      <tr><td style="color:var(--cinza-500); padding:4px 0;">Prazo</td>
+          <td>{{ oc.cotacao.prazo_dias ~ ' dias' if oc.cotacao.prazo_dias else '—' }}</td></tr>
+      <tr><td style="color:var(--cinza-500); padding:4px 0;">Condições</td>
+          <td>{{ oc.cotacao.condicoes or '—' }}</td></tr>
+      <tr><td style="color:var(--cinza-500); padding:4px 0;">Aprovada por</td>
+          <td>{{ oc.cotacao.aprovador.nome if oc.cotacao.aprovador else '—' }}
+            {% if oc.cotacao.aprovada_em %} em {{ oc.cotacao.aprovada_em.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+          </td></tr>
+      {% if oc.cotacao.justificativa %}
+      <tr><td style="color:var(--cinza-500); padding:4px 0;">Justificativa</td>
+          <td style="font-style:italic;">{{ oc.cotacao.justificativa }}</td></tr>
+      {% endif %}
+      {% if oc.cotacao.anexo_url %}
+      <tr><td style="color:var(--cinza-500); padding:4px 0;">Proposta</td>
+          <td><a href="{{ oc.cotacao.anexo_url }}" target="_blank" class="btn btn-secondary btn-sm">📎 Ver proposta do fornecedor</a></td></tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+{# ── ITENS DO ORÇAMENTO ────────────────────────────────────────────────────── #}
+{% if oc.orcamento.itens %}
+<div class="card">
+  <div class="card-header"><span class="card-title">Itens Solicitados</span></div>
+  <div class="card-body" style="padding:0;">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead>
+        <tr style="background:var(--cinza-50,#F5F5F5);">
+          <th style="padding:10px 14px; text-align:left; font-weight:600; color:var(--cinza-600); border-bottom:1px solid var(--cinza-100);">#</th>
+          <th style="padding:10px 14px; text-align:left; font-weight:600; color:var(--cinza-600); border-bottom:1px solid var(--cinza-100);">Tipo</th>
+          <th style="padding:10px 14px; text-align:left; font-weight:600; color:var(--cinza-600); border-bottom:1px solid var(--cinza-100);">Descrição</th>
+          <th style="padding:10px 14px; text-align:right; font-weight:600; color:var(--cinza-600); border-bottom:1px solid var(--cinza-100);">Qtd</th>
+          <th style="padding:10px 14px; text-align:right; font-weight:600; color:var(--cinza-600); border-bottom:1px solid var(--cinza-100);">Valor Unit.</th>
+          <th style="padding:10px 14px; text-align:right; font-weight:600; color:var(--cinza-600); border-bottom:1px solid var(--cinza-100);">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in oc.orcamento.itens %}
+        {% set tipo_map = {'servico': 'Serviço', 'material': 'Material', 'implemento': 'Implemento'} %}
+        <tr style="{% if loop.index % 2 == 0 %}background:var(--cinza-50,#F9FAFB);{% endif %}">
+          <td style="padding:9px 14px; color:var(--cinza-400);">{{ loop.index }}</td>
+          <td style="padding:9px 14px;">
+            <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; background:var(--cinza-100); color:var(--cinza-600);">
+              {{ tipo_map.get(item.tipo_item, item.tipo_item) }}
+            </span>
+          </td>
+          <td style="padding:9px 14px; color:var(--cinza-800);">
+            {% if item.tipo_item == 'servico' and item.servico %}{{ item.servico.nome }}
+            {% elif item.tipo_item in ('material','implemento') and item.material %}{{ item.material.nome }}
+            {% else %}{{ item.descricao_livre or '—' }}{% endif %}
+          </td>
+          <td style="padding:9px 14px; text-align:right; font-family:var(--mono);">{{ item.quantidade | float | int if item.quantidade == item.quantidade | int else item.quantidade }}</td>
+          <td style="padding:9px 14px; text-align:right; font-family:var(--mono);">
+            R$ {{ '{:,.2f}'.format(item.valor_unitario).replace(',','X').replace('.', ',').replace('X','.') }}
+          </td>
+          <td style="padding:9px 14px; text-align:right; font-family:var(--mono); font-weight:600;">
+            R$ {{ '{:,.2f}'.format(item.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid var(--cinza-200);">
+          <td colspan="5" style="padding:12px 14px; text-align:right; font-weight:600; font-size:13px; color:var(--cinza-700);">Total Estimado</td>
+          <td style="padding:12px 14px; text-align:right; font-weight:700; font-size:15px; color:var(--azul,#2980b9); font-family:var(--mono);">
+            R$ {{ '{:,.2f}'.format(oc.orcamento.valor_total_estimado or 0).replace(',','X').replace('.', ',').replace('X','.') }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/* ── Controle do campo NF no formulário de status ── */
+const selStatus = document.getElementById('sel-status-oc');
+const grpNf     = document.getElementById('grp-nf');
+
+function atualizarVisibilidadeNf() {
+  if (!selStatus || !grpNf) return;
+  const mostrar = selStatus.value === 'finalizada';
+  grpNf.style.display = mostrar ? '' : 'none';
+}
+
+selStatus && selStatus.addEventListener('change', atualizarVisibilidadeNf);
+atualizarVisibilidadeNf();
+
+/* ── Preview do arquivo NF no form de status ── */
+function onNfChange(input) {
+  const f = input.files[0];
+  if (!f) return;
+  document.getElementById('nf-label').style.display = 'none';
+  const prev = document.getElementById('nf-preview');
+  prev.style.display = 'flex';
+  document.getElementById('nf-nome').textContent = f.name;
+}
+function limparNf() {
+  document.getElementById('nf-input').value = '';
+  document.getElementById('nf-preview').style.display = 'none';
+  document.getElementById('nf-label').style.display = '';
+}
+function handleNfDrop(event) {
+  event.preventDefault();
+  const input = document.getElementById('nf-input');
+  input.files = event.dataTransfer.files;
+  onNfChange(input);
+  event.target.style.borderColor = 'var(--cinza-300)';
+  event.target.style.background = '';
+}
+
+/* ── Preview NF avulso ── */
+function onNfAvulsoChange(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const prev = document.getElementById('nf-avulso-preview');
+  prev.style.display = 'flex';
+  document.getElementById('nf-avulso-nome').textContent = f.name;
+  document.getElementById('nf-avulso-label-txt').textContent = f.name;
+  document.getElementById('btn-upload-nf-avulso').disabled = false;
+}
+function handleNfAvulsoDrop(event) {
+  event.preventDefault();
+  const input = document.getElementById('nf-avulso-input');
+  if (!input) return;
+  input.files = event.dataTransfer.files;
+  onNfAvulsoChange(input);
+  event.target.style.borderColor = 'var(--cinza-300)';
+  event.target.style.background = '';
+}
+</script>
+{% endblock %}

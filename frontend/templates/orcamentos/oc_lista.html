@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Ordens de Compra{% endblock %}
+{% block page_title %}Ordens de Compra{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('orcamentos.lista') }}" class="btn btn-secondary btn-sm">← Orçamentos</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.filter-panel{background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px}
+.filter-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:5px;min-width:140px;flex:1}
+.filter-group label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-tertiary)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+  {% for s, label in [('','Todas'),('gerada','Gerada'),('enviada_fornecedor','Enviada'),('em_aquisicao','Em Aquisição'),('finalizada','Finalizada')] %}
+  <a href="{{ url_for('orcamentos.lista_oc', status=s, data_de=data_de, data_ate=data_ate, q=q) }}"
+     class="btn {% if status == s %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<!-- FILTRO POR DATA -->
+<div class="filter-panel">
+  <form method="GET" id="filterForm">
+    <input type="hidden" name="status" value="{{ status }}">
+    <div class="filter-row">
+      <div class="filter-group" style="min-width:200px;flex:2;">
+        <label>Busca rápida</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Número, fornecedor..." style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border-default);border-radius:var(--radius);font-size:13px;color:var(--text-primary);outline:none;">
+      </div>
+      <div class="filter-group">
+        <label>Gerada em — de</label>
+        <input type="date" name="data_de" value="{{ data_de }}">
+      </div>
+      <div class="filter-group">
+        <label>Gerada em — até</label>
+        <input type="date" name="data_ate" value="{{ data_ate }}">
+      </div>
+      <div style="align-self:flex-end;display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+        <a href="{{ url_for('orcamentos.lista_oc', status=status) }}" class="btn btn-secondary btn-sm">Limpar datas</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if ocs.items %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Número OC</th>
+            <th>Orçamento</th>
+            <th>Fornecedor</th>
+            <th>OS Vinculada</th>
+            <th>Valor Total</th>
+            <th>Gerada em</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for oc in ocs.items %}
+          <tr>
+            <td class="mono" style="font-weight:700; color:var(--azul, #2980b9);">{{ oc.numero }}</td>
+            <td><a href="{{ url_for('orcamentos.detalhe', id=oc.orcamento_id) }}" style="color:var(--laranja); font-weight:600; text-decoration:none;">{{ oc.orcamento.numero }}</a></td>
+            <td style="font-size:13px;">{{ oc.fornecedor.razao_social }}</td>
+            <td style="font-size:12px;">
+              {% if oc.os %}
+              <a href="{{ url_for('os.detalhe', id=oc.os.id) }}" style="color:var(--cinza-600); text-decoration:none;">{{ oc.os.numero }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-weight:700; font-family:var(--mono);">R$ {{ '{:,.2f}'.format(oc.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+            <td style="font-size:12px;">{{ oc.gerada_em.strftime('%d/%m/%Y') if oc.gerada_em else '—' }}</td>
+            <td>
+              {% if oc.status == 'gerada' %}<span class="badge badge-laranja">Gerada</span>
+              {% elif oc.status == 'enviada_fornecedor' %}<span class="badge badge-azul">Enviada</span>
+              {% elif oc.status == 'em_aquisicao' %}<span class="badge badge-laranja">Em Aquisição</span>
+              {% elif oc.status == 'finalizada' %}<span class="badge badge-verde">Finalizada</span>
+              {% elif oc.status == 'cancelada' %}<span class="badge badge-cinza">Cancelada</span>
+              {% else %}<span class="badge badge-cinza">{{ oc.status }}</span>{% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('orcamentos.detalhe_oc', oc_id=oc.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if ocs.pages > 1 %}
+    <div class="pagination">
+      {% set args = request.args.to_dict() %}
+      {% for p in ocs.iter_pages() %}
+        {% if p %}
+          {% set _ = args.update({'page': p}) %}
+          <a href="?{{ args | urlencode }}" class="page-btn {% if p == ocs.page %}active{% endif %}">{{ p }}</a>
+        {% else %}
+          <span class="page-btn">…</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        Nenhuma Ordem de Compra encontrada.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

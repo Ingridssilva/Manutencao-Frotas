@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}
+{% block title %}{% if o %}Editar Orçamento{% elif os_fixada %}Nova Compra de Peça — {{ os_fixada.numero }}{% else %}Novo Orçamento{% endif %}{% endblock %}
+{% block page_title %}{% if o %}Editar {{ o.numero }}{% elif os_fixada %}🛒 Comprar peça — {{ os_fixada.numero }}{% else %}Novo Orçamento{% endif %}{% endblock %}
+
+{% block content %}
+
+{% if os_fixada %}
+<!-- BANNER OS VINCULADA (modo peça-para-OS vindo da OS) -->
+<div style="background:rgba(247,147,30,0.08); border:1px solid rgba(247,147,30,0.25); border-radius:10px; padding:14px 20px; margin-bottom:20px; display:flex; align-items:center; gap:16px;">
+  <span style="font-size:20px;">🔩</span>
+  <div>
+    <div style="font-weight:700; font-size:14px;">Compra de peça vinculada a {{ os_fixada.numero }}</div>
+    <div style="font-size:12px; color:var(--cinza-500);">{{ os_fixada.veiculo.placa }} — {{ os_fixada.descricao_problema[:80] if os_fixada.descricao_problema else '—' }}</div>
+  </div>
+  <a href="{{ url_for('os.detalhe', id=os_fixada.id) }}" class="btn btn-secondary btn-sm" style="margin-left:auto;">← Voltar à OS</a>
+</div>
+{% endif %}
+
+<form method="POST" id="formOrc">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+{% if not os_fixada %}
+<!-- TIPO DE SOLICITAÇÃO — apenas quando não vem de uma OS específica -->
+<div class="card" style="margin-bottom:20px; border-left:4px solid var(--laranja);">
+  <div class="card-header"><span class="card-title">Tipo de Solicitação</span></div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo da Solicitação *</label>
+        <select name="tipo_solicitacao" required onchange="toggleTipoSolicitacao(this.value)" id="sel-tipo-sol">
+          <option value="aquisicao_servico" {% if not o or o.tipo_solicitacao == 'aquisicao_servico' %}selected{% endif %}>
+            🔧 Aquisição de Serviço (contratação de empresa / mão de obra)
+          </option>
+          <option value="aquisicao_peca_os" {% if o and o.tipo_solicitacao == 'aquisicao_peca_os' %}selected{% endif %}>
+            🔩 Compra de Peça para OS (vinculado a uma Ordem de Serviço)
+          </option>
+          <option value="compra_peca_sem_os" {% if o and o.tipo_solicitacao == 'compra_peca_sem_os' %}selected{% endif %}>
+            📦 Compra de Peça sem OS (compra avulsa, sem vínculo com OS)
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group" id="grp-os-vinculada"
+           {% if not o or o.tipo_solicitacao != 'aquisicao_peca_os' %}style="display:none;"{% endif %}>
+        <label>OS Vinculada *</label>
+        <div class="ss-wrap" data-catalog="ordensAbertas" data-hidden-name="os_vinculada_id" id="ss-os-vinculada"
+             {% if o and o.os_vinculada_id %}data-selected="{{ o.os_vinculada_id }}"{% endif %}
+             {% if o and o.tipo_solicitacao == 'aquisicao_peca_os' %}data-required="true"{% endif %}
+             data-placeholder="Buscar OS por número, placa ou descrição..."></div>
+        <small style="color:var(--cinza-500); font-size:11px;">Somente OS em aberto / execução / aguardando peça</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- QUANDO VINDO DE UMA OS: tipo fixo, campos ocultos -->
+<input type="hidden" name="tipo_solicitacao" value="aquisicao_peca_os">
+<input type="hidden" name="os_vinculada_id" value="{{ os_fixada.id }}">
+<input type="hidden" name="veiculo_id" value="{{ os_fixada.veiculo_id }}">
+{% endif %}
+
+<div class="grid-2" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Dados gerais</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        {% if not os_fixada %}
+        <div class="form-group">
+          <label>Veículo *</label>
+          <div class="ss-wrap" data-catalog="veiculosOrc" data-hidden-name="veiculo_id" data-required="true"
+               {% if o and o.veiculo_id %}data-selected="{{ o.veiculo_id }}"{% endif %}
+               data-placeholder="Buscar por placa ou modelo..."></div>
+        </div>
+        {% else %}
+        <!-- veículo já herdado da OS via campo hidden -->
+        <div class="form-group">
+          <label>Veículo</label>
+          <div style="padding:8px 12px; background:var(--cinza-50); border-radius:6px; font-weight:600; font-size:13px;">
+            {{ os_fixada.veiculo.placa }} — {{ os_fixada.veiculo.descricao or os_fixada.veiculo.modelo }}
+            <span style="color:var(--cinza-400); font-weight:400;"> (herdado da OS)</span>
+          </div>
+        </div>
+        {% endif %}
+        <div class="form-group">
+          <label>Tipo OS *</label>
+          <select name="tipo_os" required onchange="toggleFornecedor(this.value)">
+            <option value="externa" {% if not o or o.tipo_os == 'externa' %}selected{% endif %}>Externa</option>
+            <option value="interna" {% if o and o.tipo_os == 'interna' %}selected{% endif %}>Interna</option>
+          </select>
+        </div>
+        <div class="form-group" id="grp-forn" {% if not o or o.tipo_os != 'externa' %}style="display:none;"{% endif %}>
+          <label>Fornecedor preferencial</label>
+          <div class="ss-wrap" data-catalog="fornecedoresOrc" data-hidden-name="fornecedor_id"
+               {% if o and o.fornecedor_id %}data-selected="{{ o.fornecedor_id }}"{% endif %}
+               data-placeholder="Buscar fornecedor..."></div>
+        </div>
+        <div class="form-group full">
+          <label>Descrição do serviço / peça *</label>
+          <textarea name="descricao" rows="3" required placeholder="Descreva o que precisa ser adquirido ou executado...">{% if o %}{{ o.descricao }}{% endif %}</textarea>
+        </div>
+        <div class="form-group full">
+          <label>Observações</label>
+          <textarea name="observacoes" rows="2">{% if o %}{{ o.observacoes or '' }}{% endif %}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="align-self:start;">
+    <div class="card-header"><span class="card-title">Resumo</span></div>
+    <div class="card-body" style="text-align:center; padding:28px;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--cinza-500);margin-bottom:8px;">Total estimado</div>
+      <div id="total-display" style="font-size:36px;font-weight:600;color:var(--laranja);font-family:var(--mono);">R$ 0,00</div>
+      <div id="itens-count" style="font-size:13px;color:var(--cinza-400);margin-top:6px;">0 itens</div>
+    </div>
+  </div>
+</div>
+
+<!-- ITENS -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">Itens do orçamento</span>
+    <div style="display:flex;gap:8px;">
+      <button type="button" onclick="addItem('servico')"    class="btn btn-secondary btn-sm">+ Serviço</button>
+      <button type="button" onclick="addItem('material')"   class="btn btn-secondary btn-sm">+ Peça</button>
+      <button type="button" onclick="addItem('implemento')" class="btn btn-secondary btn-sm">+ Implemento</button>
+    </div>
+  </div>
+  <div class="card-body" style="padding:16px 22px;">
+    <div id="itens-list"></div>
+    <div id="itens-empty" style="text-align:center;color:var(--cinza-400);font-size:13px;padding:20px;">
+      Adicione serviços, peças ou implementos ao orçamento.
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;justify-content:flex-end;gap:12px;">
+  <a href="{{ url_for('orcamentos.lista') }}" class="btn btn-secondary">Cancelar</a>
+  <button type="submit" class="btn btn-primary">
+    {% if o %}Atualizar orçamento{% else %}Salvar orçamento{% endif %}
+  </button>
+</div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const servicos    = {{ servicos    | tojson }};
+const materiais   = {{ materiais   | tojson }};
+const implementos = {{ implementos | tojson }};
+
+// Normaliza os campos para o formato do engine global (nome/sub/val)
+function _mapCat(list) {
+  return list.map(it => ({ id: it.id, nome: it.nome, sub: it.unidade || (it.fabricante || '') || undefined, val: it.valor_referencia }));
+}
+const CATALOGO_ORC = {
+  servico:    _mapCat(servicos),
+  material:   _mapCat(materiais),
+  implemento: _mapCat(implementos)
+};
+
+// ── CATÁLOGOS (registrados no engine global de searchable-select.js) ────
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosOrc: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  fornecedoresOrc: [
+    {% for f in fornecedores %}
+    {id:"{{ f.id }}", nome:{{ f.razao_social | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  ordensAbertas: [
+    {% for os in ordens_abertas %}
+    {id:"{{ os.id }}", nome:{{ (os.numero + ' — ' + os.veiculo.placa + ' — ' + (os.descricao_problema[:50] if os.descricao_problema else '—')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+
+function toggleTipoSolicitacao(val) {
+  const grp  = document.getElementById('grp-os-vinculada');
+  const wrap = document.getElementById('ss-os-vinculada');
+  if (val === 'aquisicao_peca_os') {
+    grp.style.display = '';
+    wrap.dataset.required = 'true';
+  } else {
+    grp.style.display = 'none';
+    wrap.dataset.required = 'false';
+    wrap.classList.remove('ss-invalid');
+    const hid = wrap.querySelector('input[type=hidden]');
+    const txt = wrap.querySelector('.ss-input');
+    const clr = wrap.querySelector('.ss-clear');
+    if (hid) hid.value = '';
+    if (txt) txt.value = '';
+    if (clr) clr.classList.remove('visible');
+  }
+}
+
+function toggleFornecedor(val) {
+  document.getElementById('grp-forn').style.display = val === 'externa' ? '' : 'none';
+}
+
+// ── ITENS DO ORÇAMENTO ─────────────────────────────────────────────────
+let itemCount = 0;
+function addItem(tipo, pre) {
+  pre = pre || {};
+  const idx   = itemCount++;
+  const list  = document.getElementById('itens-list');
+  const empty = document.getElementById('itens-empty');
+  empty.style.display = 'none';
+
+  const catalog = CATALOGO_ORC[tipo] || [];
+  const label   = tipo === 'servico' ? 'Serviço' : tipo === 'material' ? 'Peça/Material' : 'Implemento';
+  const idKey   = 'item_' + tipo + '_id_' + idx;
+
+  const preQty = pre.quantidade || 1;
+  const preVal = pre.valor      || 0;
+  const preDesc= pre.descricao  || '';
+
+  const div = document.createElement('div');
+  div.className  = 'item-row';
+  div.dataset.idx = idx;
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;padding:10px 0;border-bottom:1px solid var(--cinza-100);';
+  div.innerHTML =
+    '<input type="hidden" name="item_tipo_' + idx + '" value="' + tipo + '">' +
+    '<div class="form-group" style="margin:0;">' +
+      '<label>' + label + '</label>' +
+      '<div class="ss-wrap" style="margin-bottom:4px;"></div>' +
+      '<input type="hidden" name="' + idKey + '" value="">' +
+      '<input type="text" name="item_desc_' + idx + '" placeholder="Descrição livre (se não catalogado)">' +
+    '</div>' +
+    '<div class="form-group" style="margin:0;">' +
+      '<label>Qtd</label>' +
+      '<input type="number" name="item_qty_' + idx + '" value="' + preQty + '" min="0.001" step="0.001" oninput="recalcTotal()">' +
+    '</div>' +
+    '<div class="form-group" style="margin:0;">' +
+      '<label>Valor unit. (R$)</label>' +
+      '<input type="number" name="item_val_' + idx + '" value="' + preVal + '" step="0.01" placeholder="0,00" oninput="recalcTotal()">' +
+    '</div>' +
+    '<button type="button" onclick="removerItem(this)" class="btn btn-danger btn-sm btn-icon" style="margin-bottom:1px;">✕</button>';
+
+  list.appendChild(div);
+  div.querySelector('[name="item_desc_' + idx + '"]').value = preDesc;
+
+  // inicializa o searchable select (catálogo passado diretamente, pois o tipo varia por linha)
+  const ssWrap = div.querySelector('.ss-wrap');
+  const hiddenCat = div.querySelector('[name="' + idKey + '"]');
+  window.SSInit.init(ssWrap, {
+    catalog: catalog,
+    onSelect: item => {
+      hiddenCat.value = item.id;
+      const valInput = div.querySelector('[name="item_val_' + idx + '"]');
+      if (valInput && item.val) { valInput.value = item.val; recalcTotal(); }
+    }
+  });
+
+  // pré-selecionar se editando
+  if (pre.catalogo_id) {
+    const found = catalog.find(c => String(c.id) === String(pre.catalogo_id));
+    if (found) {
+      hiddenCat.value = found.id;
+      const ti = ssWrap.querySelector('.ss-input');
+      const cl = ssWrap.querySelector('.ss-clear');
+      if (ti) { ti.value = found.nome + (found.sub ? ' (' + found.sub + ')' : ''); }
+      if (cl) cl.classList.add('visible');
+    }
+  }
+
+  recalcTotal();
+}
+
+function removerItem(btn) {
+  btn.closest('.item-row').remove();
+  recalcTotal();
+  if (!document.querySelector('.item-row')) document.getElementById('itens-empty').style.display = '';
+}
+
+function recalcTotal() {
+  let total = 0;
+  document.querySelectorAll('.item-row').forEach(function(row) {
+    const idx = row.dataset.idx;
+    const qty = parseFloat((row.querySelector('[name="item_qty_' + idx + '"]')||{}).value||0);
+    const val = parseFloat((row.querySelector('[name="item_val_' + idx + '"]')||{}).value||0);
+    total += qty * val;
+  });
+  const count = document.querySelectorAll('.item-row').length;
+  document.getElementById('total-display').textContent =
+    'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('itens-count').textContent = count + (count === 1 ? ' item' : ' itens');
+}
+
+{% if o and o.itens %}
+window.addEventListener('DOMContentLoaded', function() {
+  {% for item in o.itens %}
+  addItem('{{ item.tipo_item }}', {
+    catalogo_id : '{{ item.servico_id or item.material_id or item.implemento_id or "" }}',
+    descricao   : {{ (item.descricao_livre or '') | tojson }},
+    quantidade  : '{{ item.quantidade }}',
+    valor       : '{{ item.valor_unitario }}'
+  });
+  {% endfor %}
+});
+{% endif %}
+</script>
+{% endblock %}

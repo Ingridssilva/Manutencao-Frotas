@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Orçamentos{% endblock %}
+{% block page_title %}Orçamentos{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('orcamentos.lista_oc') }}" class="btn btn-secondary btn-sm">📋 Ordens de Compra</a>
+  <a href="{{ url_for('orcamentos.novo') }}" class="btn btn-primary btn-sm">+ Novo Orçamento</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.filter-panel{background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px}
+.filter-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:5px;min-width:140px;flex:1}
+.filter-group label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-tertiary)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTROS POR CATEGORIA (3 divisões) -->
+<div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+  <span style="font-size:12px; font-weight:600; color:var(--cinza-500); text-transform:uppercase; letter-spacing:.06em; margin-right:4px;">Categoria:</span>
+  <a href="{{ url_for('orcamentos.lista', tipo='', status=status, data_de=data_de, data_ate=data_ate, q=q) }}"
+     class="btn {% if not tipo %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Todos</a>
+  <a href="{{ url_for('orcamentos.lista', tipo='servico', status=status, data_de=data_de, data_ate=data_ate, q=q) }}"
+     class="btn {% if tipo == 'servico' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">🔧 Serviços</a>
+  <a href="{{ url_for('orcamentos.lista', tipo='peca_os', status=status, data_de=data_de, data_ate=data_ate, q=q) }}"
+     class="btn {% if tipo == 'peca_os' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">🔩 Peças para OS</a>
+  <a href="{{ url_for('orcamentos.lista', tipo='peca_sem_os', status=status, data_de=data_de, data_ate=data_ate, q=q) }}"
+     class="btn {% if tipo == 'peca_sem_os' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">📦 Peças sem OS</a>
+</div>
+
+<!-- FILTROS POR STATUS -->
+<div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+  <span style="font-size:12px; font-weight:600; color:var(--cinza-500); text-transform:uppercase; letter-spacing:.06em; margin-right:4px;">Status:</span>
+  {% for s, label in [
+    ('','Todos'),
+    ('em_elaboracao','Em Elaboração'),
+    ('aguardando_cotacao','Ag. Cotação'),
+    ('em_aprovacao','Em Aprovação'),
+    ('aprovado','Aprovado'),
+    ('reprovado','Reprovado'),
+    ('cancelado','Cancelado'),
+  ] %}
+  <a href="{{ url_for('orcamentos.lista', status=s, tipo=tipo, data_de=data_de, data_ate=data_ate, q=q) }}"
+     class="btn {% if status == s %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<!-- FILTRO POR DATA -->
+<div class="filter-panel">
+  <form method="GET" id="filterForm">
+    <input type="hidden" name="tipo" value="{{ tipo }}">
+    <input type="hidden" name="status" value="{{ status }}">
+    <div class="filter-row">
+      <div class="filter-group" style="min-width:200px;flex:2;">
+        <label>Busca rápida</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Número, placa, descrição..." style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border-default);border-radius:var(--radius);font-size:13px;color:var(--text-primary);outline:none;">
+      </div>
+      <div class="filter-group">
+        <label>Data solicitação — de</label>
+        <input type="date" name="data_de" value="{{ data_de }}">
+      </div>
+      <div class="filter-group">
+        <label>Data solicitação — até</label>
+        <input type="date" name="data_ate" value="{{ data_ate }}">
+      </div>
+      <div style="align-self:flex-end;display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+        <a href="{{ url_for('orcamentos.lista', tipo=tipo, status=status) }}" class="btn btn-secondary btn-sm">Limpar datas</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if orcs.items %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Número</th>
+            <th>Tipo</th>
+            <th>Veículo</th>
+            <th>OS Vinculada</th>
+            <th>Solicitado por</th>
+            <th>Data</th>
+            <th>Cotações</th>
+            <th>Valor est.</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orcs.items %}
+          <tr>
+            <td class="mono text-small" style="font-weight:600;">{{ o.numero }}</td>
+            <td>
+              {% if o.tipo_solicitacao == 'aquisicao_peca_os' %}
+                <span class="badge badge-laranja" title="Compra de peça para OS">🔩 Peça</span>
+              {% elif o.tipo_solicitacao == 'compra_peca_sem_os' %}
+                <span class="badge badge-verde" title="Compra de peça sem OS">📦 Peça Avulsa</span>
+              {% else %}
+                <span class="badge badge-azul" title="Aquisição de Serviço">🔧 Serviço</span>
+              {% endif %}
+            </td>
+            <td><span style="font-weight:600; color:var(--laranja);">{{ o.veiculo.placa }}</span></td>
+            <td style="font-size:12px;">
+              {% if o.os_vinculada %}
+              <a href="{{ url_for('os.detalhe', id=o.os_vinculada.id) }}" style="color:var(--cinza-600); text-decoration:none; font-weight:600;">{{ o.os_vinculada.numero }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-size:13px;">{{ o.solicitante.nome }}</td>
+            <td style="font-size:13px;">{{ o.data_solicitacao.strftime('%d/%m/%Y') }}</td>
+            <td style="text-align:center;">
+              <span style="font-weight:600;">{{ o.cotacoes|length }}</span>
+              {% if o.cotacoes|length == 0 %}<span style="color:var(--vermelho); font-size:11px;"> !</span>{% endif %}
+            </td>
+            <td style="font-weight:600;">
+              {% if o.valor_total_estimado %}
+                R$ {{ '{:,.2f}'.format(o.valor_total_estimado).replace(',','X').replace('.', ',').replace('X','.') }}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if o.status in ('em_elaboracao', 'rascunho') %}<span class="badge badge-cinza">Em Elaboração</span>
+              {% elif o.status == 'aguardando_cotacao' %}<span class="badge badge-laranja">Ag. Cotação</span>
+              {% elif o.status == 'em_aprovacao' %}<span class="badge badge-laranja">Em Aprovação</span>
+              {% elif o.status == 'aprovado' %}<span class="badge badge-verde">Aprovado</span>
+              {% elif o.status == 'reprovado' %}<span class="badge badge-vermelho">Reprovado</span>
+              {% elif o.status == 'cancelado' %}<span class="badge badge-cinza">Cancelado</span>
+              {% else %}<span class="badge badge-cinza">{{ o.status }}</span>{% endif %}
+            </td>
+            <td style="display:flex; gap:6px; align-items:center;">
+              {% if o.status in ('em_elaboracao', 'rascunho') %}
+              <a href="{{ url_for('orcamentos.editar', id=o.id) }}" class="btn btn-secondary btn-sm" title="Editar">✏️</a>
+              {% endif %}
+              <a href="{{ url_for('orcamentos.detalhe', id=o.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if orcs.pages > 1 %}
+    <div class="pagination">
+      {% set args = request.args.to_dict() %}
+      {% for p in orcs.iter_pages() %}
+        {% if p %}
+          {% set _ = args.update({'page': p}) %}
+          <a href="?{{ args | urlencode }}" class="page-btn {% if p == orcs.page %}active{% endif %}">{{ p }}</a>
+        {% else %}
+          <span class="page-btn">…</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">◫</div>
+        Nenhum orçamento encontrado.
+        <div style="margin-top:12px;">
+          <a href="{{ url_for('orcamentos.novo') }}" class="btn btn-primary btn-sm">+ Novo Orçamento</a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
