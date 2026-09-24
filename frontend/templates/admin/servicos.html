@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Catálogo de Serviços{% endblock %}
+{% block page_title %}Catálogo de Serviços{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.servico_form') }}" class="btn btn-primary btn-sm">+ Novo serviço</a>
+  <a href="{{ url_for('admin.materiais') }}" class="btn btn-secondary btn-sm">Peças</a>
+  <a href="{{ url_for('admin.implementos') }}" class="btn btn-secondary btn-sm">Implementos</a>
+  <a href="{{ url_for('admin.fornecedores') }}" class="btn btn-secondary btn-sm">Fornecedores</a>
+  <a href="{{ url_for('admin.usuarios') }}" class="btn btn-secondary btn-sm">Usuários</a>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if servicos %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Serviço</th><th>Categoria</th><th>Tempo estimado</th><th>Valor ref.</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for s in servicos %}
+          <tr>
+            <td><div style="font-weight:500;">{{ s.nome }}</div><div style="font-size:12px;color:var(--cinza-500);">{{ s.descricao or '' }}</div></td>
+            <td><span class="badge badge-azul">{{ s.categoria.nome }}</span></td>
+            <td style="font-size:13px;">{{ s.tempo_estimado_h or '—' }}h</td>
+            <td style="font-size:13px;font-weight:500;">{% if s.valor_referencia %}R$ {{ '{:,.2f}'.format(s.valor_referencia|float).replace(',','X').replace('.', ',').replace('X','.') }}{% else %}—{% endif %}</td>
+            <td>{% if s.ativo %}<span class="badge badge-verde">Ativo</span>{% else %}<span class="badge badge-cinza">Inativo</span>{% endif %}</td>
+            <td><a href="{{ url_for('admin.servico_form', id=s.id) }}" class="btn btn-secondary btn-sm btn-icon">✎</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<div class="empty-state"><div class="empty-state-icon">◍</div>Nenhum serviço cadastrado.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

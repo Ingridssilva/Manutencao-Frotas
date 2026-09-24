@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Fornecedores{% endblock %}
+{% block page_title %}Fornecedores{% endblock %}
+
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+  {# ── Importar ── #}
+  <button type="button" class="btn btn-secondary btn-sm"
+          onclick="document.getElementById('modal-import').style.display='flex'">
+    ↑ Importar Excel
+  </button>
+  {# ── Exportar ── #}
+  <a href="{{ url_for('admin.fornecedores_exportar') }}" class="btn btn-secondary btn-sm">
+    ↓ Exportar Excel
+  </a>
+  {# ── Modelo ── #}
+  <a href="{{ url_for('admin.fornecedores_modelo') }}" class="btn btn-secondary btn-sm"
+     title="Baixar planilha modelo para preenchimento">
+    ⊞ Modelo .xlsx
+  </a>
+  <a href="{{ url_for('admin.fornecedor_form') }}" class="btn btn-primary btn-sm">
+    + Novo fornecedor
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ── MODAL DE IMPORTAÇÃO ─────────────────────────────────── #}
+<div id="modal-import"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+            z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 8px 40px rgba(0,0,0,.18);position:relative;">
+    <button onclick="document.getElementById('modal-import').style.display='none'"
+            style="position:absolute;top:16px;right:16px;background:none;border:none;
+                   font-size:22px;cursor:pointer;color:var(--cinza-500);">×</button>
+
+    <h3 style="margin:0 0 6px;font-size:18px;">Importar Fornecedores</h3>
+    <p style="margin:0 0 20px;font-size:13px;color:var(--cinza-500);">
+      Envie um arquivo <strong>.xlsx</strong> com os fornecedores.<br>
+      Se o CNPJ já existir no sistema, os dados serão <strong>atualizados</strong>.<br>
+      Sem CNPJ, o fornecedor é sempre criado como novo.
+    </p>
+
+    <form method="POST" action="{{ url_for('admin.fornecedores_importar') }}"
+          enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label>Arquivo Excel (.xlsx)</label>
+        <input type="file" name="arquivo" accept=".xlsx,.xlsm" required
+               style="padding:8px;border:1px dashed var(--cinza-300);border-radius:8px;
+                      width:100%;box-sizing:border-box;cursor:pointer;">
+      </div>
+
+      <p style="font-size:12px;color:var(--cinza-400);margin:8px 0 20px;">
+        Não tem o modelo?
+        <a href="{{ url_for('admin.fornecedores_modelo') }}" style="color:var(--laranja);">
+          Baixe aqui o modelo →
+        </a>
+      </p>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary"
+                onclick="document.getElementById('modal-import').style.display='none'">
+          Cancelar
+        </button>
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── FILTRO DE BUSCA ─────────────────────────────────────── #}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="min-width:280px;margin:0;">
+        <label>Buscar</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Razão social ou CNPJ...">
+      </div>
+      <button type="submit" class="btn btn-secondary">Buscar</button>
+      {% if q %}
+        <a href="{{ url_for('admin.fornecedores') }}" class="btn btn-secondary">Limpar</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{# ── TABELA ──────────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if fornecedores %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Razão Social</th>
+            <th>CNPJ</th>
+            <th>Tipo</th>
+            <th>Município</th>
+            <th>Contato</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in fornecedores %}
+          <tr>
+            <td>
+              <div style="font-weight:500;">{{ f.razao_social }}</div>
+              {% if f.nome_fantasia %}
+                <div style="font-size:12px;color:var(--cinza-500);">{{ f.nome_fantasia }}</div>
+              {% endif %}
+            </td>
+            <td class="mono text-small">{{ f.cnpj or '—' }}</td>
+            <td><span class="badge badge-cinza">{{ f.tipo or '—' }}</span></td>
+            <td style="font-size:13px;">{{ f.municipio or '—' }}{% if f.uf %}/{{ f.uf }}{% endif %}</td>
+            <td style="font-size:12px;line-height:1.6;">
+              {% if f.telefone %}<div>📞 {{ f.telefone }}</div>{% endif %}
+              {% if f.email %}<div>✉ {{ f.email }}</div>{% endif %}
+              {% if not f.telefone and not f.email %}—{% endif %}
+            </td>
+            <td>
+              {% if f.ativo %}
+                <span class="badge badge-verde">Ativo</span>
+              {% else %}
+                <span class="badge badge-cinza">Inativo</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('admin.fornecedor_form', id=f.id) }}"
+                 class="btn btn-secondary btn-sm">Editar</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="padding:12px 22px;font-size:12px;color:var(--cinza-400);border-top:1px solid var(--cinza-100);">
+      {{ fornecedores|length }} fornecedor(es) encontrado(s)
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">◈</div>
+      Nenhum fornecedor cadastrado.
+      <div style="margin-top:12px;">
+        <a href="{{ url_for('admin.fornecedores_modelo') }}" class="btn btn-secondary btn-sm">
+          Baixar modelo para importação
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

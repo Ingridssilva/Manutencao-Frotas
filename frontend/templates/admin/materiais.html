@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Catálogo de Peças{% endblock %}
+{% block page_title %}Catálogo de Peças{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.material_form') }}" class="btn btn-primary btn-sm">+ Nova peça</a>
+  <a href="{{ url_for('admin.servicos') }}" class="btn btn-secondary btn-sm">Serviços</a>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if peças %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Peça</th><th>Categoria</th><th>Código</th><th>Unidade</th><th>Valor ref.</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for m in peças %}
+          <tr>
+            <td style="font-weight:500;">{{ m.nome }}</td>
+            <td><span class="badge badge-cinza">{{ m.categoria.nome }}</span></td>
+            <td class="mono text-small">{{ m.codigo or '—' }}</td>
+            <td style="font-size:13px;">{{ m.unidade }}</td>
+            <td style="font-size:13px;">{% if m.valor_referencia %}R$ {{ '{:,.2f}'.format(m.valor_referencia|float).replace(',','X').replace('.', ',').replace('X','.') }}{% else %}—{% endif %}</td>
+            <td>{% if m.ativo %}<span class="badge badge-verde">Ativo</span>{% else %}<span class="badge badge-cinza">Inativo</span>{% endif %}</td>
+            <td><a href="{{ url_for('admin.material_form', id=m.id) }}" class="btn btn-secondary btn-sm btn-icon">✎</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<div class="empty-state"><div class="empty-state-icon">◈</div>Nenhuma peça cadastrado.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

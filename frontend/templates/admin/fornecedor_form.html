@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if f else 'Novo' }} Fornecedor{% endblock %}
+{% block page_title %}{{ 'Editar' if f else 'Novo' }} Fornecedor{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin.fornecedores') }}" class="btn btn-secondary btn-sm">← Fornecedores</a>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px;">
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group full"><label>Razão social *</label><input type="text" name="razao_social" value="{{ f.razao_social if f else '' }}" required></div>
+        <div class="form-group"><label>Nome fantasia</label><input type="text" name="nome_fantasia" value="{{ f.nome_fantasia if f else '' }}"></div>
+        <div class="form-group"><label>CNPJ</label><input type="text" name="cnpj" value="{{ f.cnpj if f else '' }}" placeholder="00.000.000/0000-00"></div>
+        <div class="form-group"><label>Tipo</label>
+          <select name="tipo">
+            <option value="">Selecione</option>
+            {% for t in ['oficina','pecas','locacao','combustivel','seguro','geral'] %}
+            <option value="{{ t }}" {% if f and f.tipo==t %}selected{% endif %}>{{ t.title() }}</option>
+            {% endfor %}
+          </select></div>
+        <div class="form-group"><label>Telefone</label><input type="text" name="telefone" value="{{ f.telefone if f else '' }}"></div>
+        <div class="form-group"><label>E-mail</label><input type="email" name="email" value="{{ f.email if f else '' }}"></div>
+        <div class="form-group"><label>Município</label><input type="text" name="municipio" value="{{ f.municipio if f else '' }}"></div>
+        <div class="form-group"><label>UF</label>
+          <div class="ss-wrap" data-catalog="ufsFornecedor" data-hidden-name="uf"
+               data-selected="{{ f.uf if f else 'PA' }}" data-placeholder="Buscar estado..."></div></div>
+        <div class="form-group full"><label>Endereço</label><textarea name="endereco" rows="2">{{ f.endereco if f else '' }}</textarea></div>
+        <div class="form-group full"><label>Observações</label><textarea name="observacoes" rows="2">{{ f.observacoes if f else '' }}</textarea></div>
+        {% if f %}<div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" name="ativo" {% if f.ativo %}checked{% endif %}> Fornecedor ativo</label></div>{% endif %}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('admin.fornecedores') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{{ 'Atualizar' if f else 'Cadastrar' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  ufsFornecedor: [
+    {% for uf in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+    {id:{{ uf | tojson }}, nome:{{ uf | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

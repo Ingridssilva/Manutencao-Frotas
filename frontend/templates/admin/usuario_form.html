@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if u else 'Novo' }} Usuário{% endblock %}
+{% block page_title %}{{ 'Editar' if u else 'Novo' }} Usuário{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin.usuarios') }}" class="btn btn-secondary btn-sm">← Usuários</a>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:560px;">
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group full"><label>Nome completo *</label><input type="text" name="nome" value="{{ u.nome if u else '' }}" required></div>
+        <div class="form-group full"><label>E-mail *</label><input type="email" name="email" value="{{ u.email if u else '' }}" required></div>
+        <div class="form-group"><label>Perfil *</label>
+          <select name="perfil_id" required>
+            {% for p in perfis %}<option value="{{ p.id }}" {% if u and u.perfil_id == p.id %}selected{% endif %}>{{ p.nome }} — {{ p.descricao }}</option>{% endfor %}
+          </select></div>
+        <div class="form-group"><label>Nova senha {% if not u %}*{% endif %}</label><input type="password" name="senha" {% if not u %}required{% endif %} placeholder="{{ 'deixe vazio para manter' if u else '' }}"></div>
+        {% if u %}
+        <div class="form-group"><label>Status</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">
+            <input type="checkbox" name="ativo" {% if u.ativo %}checked{% endif %}> Usuário ativo
+          </label></div>
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{{ 'Atualizar' if u else 'Criar usuário' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

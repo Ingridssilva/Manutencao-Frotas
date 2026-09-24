@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% block title %}Catálogo{% endblock %}
+{% block page_title %}Catálogo{% endblock %}
+{% block topbar_actions %}
+  <button type="button" class="btn btn-primary btn-sm" id="btnNovoItem">+ Novo Item</button>
+  <a href="{{ url_for('admin.catalogo_exportar') }}" class="btn btn-secondary btn-sm" title="Exportar catálogo completo em Excel">⬇ Exportar Excel</a>
+  <button type="button" class="btn btn-secondary btn-sm" id="btnImportar" title="Importar itens via Excel">⬆ Importar Excel</button>
+  <a href="{{ url_for('admin.fornecedores') }}" class="btn btn-secondary btn-sm">Fornecedores</a>
+  <a href="{{ url_for('admin.usuarios') }}" class="btn btn-secondary btn-sm">Usuários</a>
+{% endblock %}
+
+{% block content %}
+<!-- CATALOG TABS -->
+<div class="catalog-tabs">
+  <a href="#" class="catalog-tab active" data-tab="servicos" onclick="switchTab('servicos',this);return false;">
+    🔧 Serviços
+    <span class="catalog-tab-count" id="count-servicos">{{ servicos|length }}</span>
+  </a>
+  <a href="#" class="catalog-tab" data-tab="pecas" onclick="switchTab('pecas',this);return false;">
+    ⚙ Peças
+    <span class="catalog-tab-count" id="count-pecas">{{ peças|length }}</span>
+  </a>
+  <a href="#" class="catalog-tab" data-tab="implementos" onclick="switchTab('implementos',this);return false;">
+    🏗 Implementos
+    <span class="catalog-tab-count" id="count-implementos">{{ implementos|length }}</span>
+  </a>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-search">
+    <span class="filter-search-icon">⌕</span>
+    <input type="text" id="filterInput" placeholder="Filtrar por nome, categoria, código..." oninput="filterTable()">
+  </div>
+  <select id="filterStatus" onchange="filterTable()" style="width:auto;padding:8px 32px 8px 12px;">
+    <option value="">Todos os status</option>
+    <option value="ativo">Ativos</option>
+    <option value="inativo">Inativos</option>
+  </select>
+</div>
+
+<!-- TAB: SERVIÇOS -->
+<div id="tab-servicos" class="tab-content">
+  <div class="card">
+    {% if servicos %}
+    <div class="table-wrap">
+      <table id="tbl-servicos">
+        <thead>
+          <tr>
+            <th>Serviço</th>
+            <th>Categoria</th>
+            <th>Tempo Est.</th>
+            <th>Valor Ref.</th>
+            <th>Status</th>
+            <th style="width:80px;text-align:right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in servicos %}
+          <tr data-status="{{ 'ativo' if s.ativo else 'inativo' }}" data-name="{{ s.nome|lower }} {{ s.descricao|lower if s.descricao else '' }} {{ s.categoria.nome|lower }}">
+            <td>
+              <div style="font-weight:500;color:var(--text-primary);">{{ s.nome }}</div>
+              {% if s.descricao %}<div style="font-size:12px;color:var(--text-tertiary);margin-top:2px;">{{ s.descricao }}</div>{% endif %}
+            </td>
+            <td><span class="badge badge-azul">{{ s.categoria.nome }}</span></td>
+            <td style="font-family:var(--mono);font-size:13px;">
+              {% if s.tempo_estimado_h %}{{ s.tempo_estimado_h }}h{% else %}<span style="color:var(--text-tertiary);">—</span>{% endif %}
+            </td>
+            <td>
+              {% if s.valor_referencia %}
+                <span style="font-family:var(--mono);font-size:13px;color:var(--verde);">R$ {{ '{:,.2f}'.format(s.valor_referencia|float).replace(',','X').replace('.', ',').replace('X','.') }}</span>
+              {% else %}<span style="color:var(--text-tertiary);">—</span>{% endif %}
+            </td>
+            <td>
+              {% if s.ativo %}
+                <span class="badge badge-verde">● Ativo</span>
+              {% else %}
+                <span class="badge badge-cinza">○ Inativo</span>
+              {% endif %}
+            </td>
+            <td style="text-align:right;">
+              <a href="{{ url_for('admin.servico_form', id=s.id) }}" class="btn btn-secondary btn-sm btn-icon" title="Editar">✎</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">🔧</div>
+      <p>Nenhum serviço cadastrado.</p>
+      <a href="{{ url_for('admin.servico_form') }}" class="btn btn-primary" style="margin-top:16px;">+ Adicionar Serviço</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- TAB: PEÇAS -->
+<div id="tab-pecas" class="tab-content" style="display:none;">
+  <div class="card">
+    {% if peças %}
+    <div class="table-wrap">
+      <table id="tbl-pecas">
+        <thead>
+          <tr>
+            <th>Peça</th>
+            <th>Categoria</th>
+            <th>Código</th>
+            <th>Unidade</th>
+            <th>Valor Ref.</th>
+            <th>Status</th>
+            <th style="width:80px;text-align:right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in peças %}
+          <tr data-status="{{ 'ativo' if m.ativo else 'inativo' }}" data-name="{{ m.nome|lower }} {{ m.codigo|lower if m.codigo else '' }} {{ m.categoria.nome|lower }}">
+            <td>
+              <div style="font-weight:500;color:var(--text-primary);">{{ m.nome }}</div>
+              {% if m.descricao %}<div style="font-size:12px;color:var(--text-tertiary);margin-top:2px;">{{ m.descricao }}</div>{% endif %}
+            </td>
+            <td><span class="badge badge-cinza">{{ m.categoria.nome }}</span></td>
+            <td><span class="mono text-small" style="color:var(--text-tertiary);">{{ m.codigo or '—' }}</span></td>
+            <td><span class="badge badge-laranja">{{ m.unidade }}</span></td>
+            <td>
+              {% if m.valor_referencia %}
+                <span style="font-family:var(--mono);font-size:13px;color:var(--verde);">R$ {{ '{:,.2f}'.format(m.valor_referencia|float).replace(',','X').replace('.', ',').replace('X','.') }}</span>
+              {% else %}<span style="color:var(--text-tertiary);">—</span>{% endif %}
+            </td>
+            <td>
+              {% if m.ativo %}<span class="badge badge-verde">● Ativo</span>
+              {% else %}<span class="badge badge-cinza">○ Inativo</span>{% endif %}
+            </td>
+            <td style="text-align:right;">
+              <a href="{{ url_for('admin.material_form', id=m.id) }}" class="btn btn-secondary btn-sm btn-icon" title="Editar">✎</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">⚙</div>
+      <p>Nenhuma peça cadastrada.</p>
+      <a href="{{ url_for('admin.material_form') }}" class="btn btn-primary" style="margin-top:16px;">+ Adicionar Peça</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- TAB: IMPLEMENTOS -->
+<div id="tab-implementos" class="tab-content" style="display:none;">
+  <div class="card">
+    {% if implementos %}
+    <div class="table-wrap">
+      <table id="tbl-implementos">
+        <thead>
+          <tr>
+            <th>Implemento</th>
+            <th>Categoria</th>
+            <th>Código</th>
+            <th>Fabricante</th>
+            <th>Valor Ref.</th>
+            <th>Status</th>
+            <th style="width:80px;text-align:right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in implementos %}
+          <tr data-status="{{ 'ativo' if i.ativo else 'inativo' }}" data-name="{{ i.nome|lower }} {{ i.fabricante|lower if i.fabricante else '' }} {{ i.codigo|lower if i.codigo else '' }} {{ i.categoria.nome|lower }}">
+            <td>
+              <div style="font-weight:500;color:var(--text-primary);">{{ i.nome }}</div>
+              {% if i.descricao %}<div style="font-size:12px;color:var(--text-tertiary);margin-top:2px;">{{ i.descricao }}</div>{% endif %}
+            </td>
+            <td><span class="badge badge-roxo">{{ i.categoria.nome }}</span></td>
+            <td><span class="mono text-small" style="color:var(--text-tertiary);">{{ i.codigo or '—' }}</span></td>
+            <td style="font-size:13px;color:var(--text-secondary);">{{ i.fabricante or '—' }}</td>
+            <td>
+              {% if i.valor_referencia %}
+                <span style="font-family:var(--mono);font-size:13px;color:var(--verde);">R$ {{ '{:,.2f}'.format(i.valor_referencia|float).replace(',','X').replace('.', ',').replace('X','.') }}</span>
+              {% else %}<span style="color:var(--text-tertiary);">—</span>{% endif %}
+            </td>
+            <td>
+              {% if i.ativo %}<span class="badge badge-verde">● Ativo</span>
+              {% else %}<span class="badge badge-cinza">○ Inativo</span>{% endif %}
+            </td>
+            <td style="text-align:right;">
+              <a href="{{ url_for('admin.implemento_form', id=i.id) }}" class="btn btn-secondary btn-sm btn-icon" title="Editar">✎</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">🏗</div>
+      <p>Nenhum implemento cadastrado.</p>
+      <a href="{{ url_for('admin.implemento_form') }}" class="btn btn-primary" style="margin-top:16px;">+ Adicionar Implemento</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- MODAL: Importar Excel -->
+<div id="modalImportar" style="display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,0.70);backdrop-filter:blur(4px);" onclick="closeImportModal()"></div>
+  <div style="position:relative;background:var(--bg-card);border:1px solid var(--border-strong);border-radius:var(--radius-xl);padding:28px;width:100%;max-width:480px;box-shadow:var(--shadow-md);z-index:1;animation:fadeSlide .25s var(--ease);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:-.02em;">⬆ Importar Catálogo via Excel</h3>
+      <button onclick="closeImportModal()" class="btn btn-ghost btn-icon btn-sm">✕</button>
+    </div>
+    <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px;font-size:12.5px;color:var(--text-secondary);line-height:1.6;">
+      <strong style="color:var(--text-primary);">Formato esperado:</strong> Use o Excel exportado como modelo.<br>
+      As abas devem se chamar <strong>Serviços</strong>, <strong>Peças</strong> e <strong>Implementos</strong>.<br>
+      Itens existentes (mesmo nome + categoria) serão <strong>atualizados</strong>. Novos serão <strong>criados</strong>.
+    </div>
+    <form method="POST" action="{{ url_for('admin.catalogo_importar') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" style="margin-bottom:20px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Arquivo .xlsx</label>
+        <input type="file" name="arquivo" accept=".xlsx" required
+               style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" onclick="closeImportModal()" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Novo item -->
+<div id="modalNovo" style="display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,0.70);backdrop-filter:blur(4px);" onclick="closeModal()"></div>
+  <div style="position:relative;background:var(--bg-card);border:1px solid var(--border-strong);border-radius:var(--radius-xl);padding:28px;width:100%;max-width:420px;box-shadow:var(--shadow-md);z-index:1;animation:fadeSlide .25s var(--ease);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:-.02em;">Adicionar ao Catálogo</h3>
+      <button onclick="closeModal()" class="btn btn-ghost btn-icon btn-sm">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">Selecione o tipo de item que deseja cadastrar:</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <a href="{{ url_for('admin.servico_form') }}" class="btn btn-secondary" style="justify-content:flex-start;gap:14px;padding:14px 16px;">
+        <span style="width:36px;height:36px;background:var(--azul-soft);border:1px solid var(--azul-border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🔧</span>
+        <div style="text-align:left;">
+          <div style="font-weight:600;color:var(--text-primary);font-size:13.5px;">Serviço</div>
+          <div style="font-size:11.5px;color:var(--text-tertiary);margin-top:1px;">Adicionar serviço ao catálogo</div>
+        </div>
+      </a>
+      <a href="{{ url_for('admin.material_form') }}" class="btn btn-secondary" style="justify-content:flex-start;gap:14px;padding:14px 16px;">
+        <span style="width:36px;height:36px;background:var(--laranja-soft);border:1px solid var(--laranja-border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⚙</span>
+        <div style="text-align:left;">
+          <div style="font-weight:600;color:var(--text-primary);font-size:13.5px;">Peça</div>
+          <div style="font-size:11.5px;color:var(--text-tertiary);margin-top:1px;">Adicionar peça ou material</div>
+        </div>
+      </a>
+      <a href="{{ url_for('admin.implemento_form') }}" class="btn btn-secondary" style="justify-content:flex-start;gap:14px;padding:14px 16px;">
+        <span style="width:36px;height:36px;background:var(--roxo-soft);border:1px solid var(--roxo-border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏗</span>
+        <div style="text-align:left;">
+          <div style="font-weight:600;color:var(--text-primary);font-size:13.5px;">Implemento</div>
+          <div style="font-size:11.5px;color:var(--text-tertiary);margin-top:1px;">Adicionar implemento ao catálogo</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let activeTab = 'servicos';
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.catalog-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = '';
+  el.classList.add('active');
+  activeTab = tab;
+  document.getElementById('filterInput').value = '';
+}
+
+function filterTable() {
+  const q     = document.getElementById('filterInput').value.toLowerCase().trim();
+  const st    = document.getElementById('filterStatus').value;
+  const table = document.querySelector('#tab-' + activeTab + ' tbody');
+  if (!table) return;
+  table.querySelectorAll('tr').forEach(tr => {
+    const name   = tr.dataset.name || '';
+    const status = tr.dataset.status || '';
+    const matchQ  = !q || name.includes(q);
+    const matchSt = !st || status === st;
+    tr.style.display = (matchQ && matchSt) ? '' : 'none';
+  });
+}
+
+function openModal()  {
+  const m = document.getElementById('modalNovo');
+  m.style.display = 'flex';
+}
+function closeModal() { document.getElementById('modalNovo').style.display = 'none'; }
+
+document.getElementById('btnNovoItem').addEventListener('click', openModal);
+document.getElementById('btnImportar').addEventListener('click', function() {
+  document.getElementById('modalImportar').style.display = 'flex';
+});
+function closeImportModal() { document.getElementById('modalImportar').style.display = 'none'; }
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+// Read tab from URL hash
+const hash = location.hash.replace('#','');
+if(['servicos','pecas','implementos'].includes(hash)){
+  const link = document.querySelector(`[data-tab="${hash}"]`);
+  if(link) switchTab(hash, link);
+}
+</script>
+{% endblock %}

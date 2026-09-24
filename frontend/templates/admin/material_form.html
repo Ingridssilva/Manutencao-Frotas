@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if mat else 'Nova' }} Peça{% endblock %}
+{% block page_title %}{{ 'Editar' if mat else 'Nova' }} Peça{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.catalogo') }}#pecas" class="btn btn-secondary btn-sm">← Catálogo</a>
+{% endblock %}
+{% block content %}
+<div style="max-width:580px;">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">
+        <span style="width:26px;height:26px;background:var(--laranja-soft);border:1px solid var(--laranja-border);border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-right:4px;">⚙</span>
+        {{ 'Editar Peça' if mat else 'Nova Peça / Material' }}
+      </span>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Categoria *</label>
+            <div class="ss-wrap" data-catalog="categoriasMat" data-hidden-name="categoria_id" data-required="true"
+                 {% if mat and mat.categoria_id %}data-selected="{{ mat.categoria_id }}"{% endif %}
+                 data-placeholder="Buscar categoria..."></div>
+          </div>
+          <div class="form-group full">
+            <label>Nome da peça / material *</label>
+            <input type="text" name="nome" value="{{ mat.nome if mat else '' }}" required placeholder="Ex: Filtro de óleo, Pastilha de freio...">
+          </div>
+          <div class="form-group">
+            <label>Código interno</label>
+            <input type="text" name="codigo" value="{{ mat.codigo if mat else '' }}" placeholder="SKU, código interno...">
+          </div>
+          <div class="form-group">
+            <label>Unidade *</label>
+            <select name="unidade" required>
+              {% for u in ['un','L','kg','m','par','cx','rolo'] %}
+              <option value="{{ u }}" {% if mat and mat.unidade==u %}selected{% endif %}>{{ u }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Valor referência (R$)</label>
+            <input type="number" name="valor_referencia" step="0.01" value="{{ mat.valor_referencia if mat else '' }}" placeholder="0,00">
+          </div>
+          <div class="form-group full">
+            <label>Descrição</label>
+            <textarea name="descricao" rows="2" placeholder="Informações adicionais...">{{ mat.descricao if mat else '' }}</textarea>
+          </div>
+          {% if mat %}
+          <div class="form-group">
+            <label>Status</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:400;color:var(--text-primary);">
+              <input type="checkbox" name="ativo" {% if mat.ativo %}checked{% endif %}> Ativo
+            </label>
+          </div>
+          {% endif %}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end;">
+          <a href="{{ url_for('admin.catalogo') }}#pecas" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">{{ 'Atualizar' if mat else 'Criar Peça' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  categoriasMat: [
+    {% for c in categorias %}
+    {id:"{{ c.id }}", nome:{{ c.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

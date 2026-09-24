@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Checklist — Configuração{% endblock %}
+{% block page_title %}Itens do Checklist{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin.usuarios') }}" class="btn btn-secondary btn-sm">← Admin</a>{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Itens cadastrados</span></div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Ordem</th><th>Item</th><th>Obrigatório</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for item in itens %}
+          <tr>
+            <td style="font-size:13px;color:var(--cinza-500);">{{ item.ordem }}</td>
+            <td style="font-weight:500;">{{ item.nome }}</td>
+            <td>{% if item.obrigatorio %}<span class="badge badge-vermelho">Sim</span>{% else %}<span class="badge badge-cinza">Não</span>{% endif %}</td>
+            <td>{% if item.ativo %}<span class="badge badge-verde">Ativo</span>{% else %}<span class="badge badge-cinza">Inativo</span>{% endif %}</td>
+            <td>
+              <form method="POST" action="{{ url_for('admin.checklist_item_toggle', id=item.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary btn-sm">{{ 'Desativar' if item.ativo else 'Ativar' }}</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="align-self:start;">
+    <div class="card-header"><span class="card-title">Novo item</span></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('admin.checklist_item_novo') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group" style="margin-bottom:14px;"><label>Nome do item *</label><input type="text" name="nome" required placeholder="Ex: Nível de óleo"></div>
+        <div class="form-group" style="margin-bottom:14px;"><label>Ordem</label><input type="number" name="ordem" value="99"></div>
+        <div class="form-group" style="margin-bottom:20px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" name="obrigatorio" checked> Obrigatório
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Adicionar item</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

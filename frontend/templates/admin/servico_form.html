@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if svc else 'Novo' }} Serviço{% endblock %}
+{% block page_title %}{{ 'Editar' if svc else 'Novo' }} Serviço{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.catalogo') }}#servicos" class="btn btn-secondary btn-sm">← Catálogo</a>
+{% endblock %}
+{% block content %}
+<div style="max-width:580px;">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">
+        <span style="width:26px;height:26px;background:var(--azul-soft);border:1px solid var(--azul-border);border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-right:4px;">🔧</span>
+        {{ 'Editar Serviço' if svc else 'Novo Serviço' }}
+      </span>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Categoria *</label>
+            <div class="ss-wrap" data-catalog="categoriasSvc" data-hidden-name="categoria_id" data-required="true"
+                 {% if svc and svc.categoria_id %}data-selected="{{ svc.categoria_id }}"{% endif %}
+                 data-placeholder="Buscar categoria..."></div>
+          </div>
+          <div class="form-group full">
+            <label>Nome do serviço *</label>
+            <input type="text" name="nome" value="{{ svc.nome if svc else '' }}" required placeholder="Ex: Troca de óleo, Alinhamento...">
+          </div>
+          <div class="form-group full">
+            <label>Descrição</label>
+            <textarea name="descricao" rows="2" placeholder="Detalhes do serviço...">{{ svc.descricao if svc else '' }}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Tempo estimado (horas)</label>
+            <input type="number" name="tempo_estimado_h" step="0.5" value="{{ svc.tempo_estimado_h if svc else '' }}" placeholder="ex: 2.5">
+          </div>
+          <div class="form-group">
+            <label>Valor referência (R$)</label>
+            <input type="number" name="valor_referencia" step="0.01" value="{{ svc.valor_referencia if svc else '' }}" placeholder="0,00">
+          </div>
+          {% if svc %}
+          <div class="form-group">
+            <label>Status</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:400;color:var(--text-primary);">
+              <input type="checkbox" name="ativo" {% if svc.ativo %}checked{% endif %}> Ativo
+            </label>
+          </div>
+          {% endif %}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end;">
+          <a href="{{ url_for('admin.catalogo') }}#servicos" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">{{ 'Atualizar' if svc else 'Criar Serviço' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  categoriasSvc: [
+    {% for c in categorias %}
+    {id:"{{ c.id }}", nome:{{ c.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

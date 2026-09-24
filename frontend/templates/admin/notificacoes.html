@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Notificações{% endblock %}
+{% block page_title %}Controle de Notificações{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;">
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><span class="card-title">Notificações automáticas</span></div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--cinza-500);margin-bottom:20px;">
+        O sistema envia e-mails automaticamente para todos os usuários com perfil <strong>admin</strong> ou <strong>gestor</strong>.
+        Você pode disparar manualmente abaixo ou aguardar o envio automático (configurado via scheduler).
+      </p>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+
+        <div style="padding:16px;background:var(--cinza-50);border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:600;font-size:14px;">CRLV vencendo</div>
+            <div style="font-size:12px;color:var(--cinza-500);">Alerta 30 dias antes do vencimento</div>
+          </div>
+          <button onclick="disparar('crlv')" class="btn btn-secondary btn-sm">Testar envio</button>
+        </div>
+
+        <div style="padding:16px;background:var(--cinza-50);border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:600;font-size:14px;">CNH vencendo</div>
+            <div style="font-size:12px;color:var(--cinza-500);">Alerta 60 dias antes do vencimento</div>
+          </div>
+          <button onclick="disparar('cnh')" class="btn btn-secondary btn-sm">Testar envio</button>
+        </div>
+
+        <div style="padding:16px;background:var(--cinza-50);border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:600;font-size:14px;">OS paradas</div>
+            <div style="font-size:12px;color:var(--cinza-500);">OS sem movimentação há mais de 7 dias</div>
+          </div>
+          <button onclick="disparar('os')" class="btn btn-secondary btn-sm">Testar envio</button>
+        </div>
+
+        <div style="padding:16px;background:var(--cinza-50);border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:600;font-size:14px;">Pneus desgastados</div>
+            <div style="font-size:12px;color:var(--cinza-500);">Pneus com mais de 80% de vida consumida</div>
+          </div>
+          <button onclick="disparar('pneus')" class="btn btn-secondary btn-sm">Testar envio</button>
+        </div>
+
+      </div>
+
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--cinza-100);">
+        <button onclick="disparar('todas')" class="btn btn-primary" id="btnTodas">
+          Disparar todas as notificações agora
+        </button>
+      </div>
+
+      <div id="resultado" style="display:none;margin-top:16px;padding:14px;border-radius:8px;font-size:13px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Variável de ambiente necessária</span></div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--cinza-500);margin-bottom:12px;">
+        Para os e-mails funcionarem, adicione no Render em <strong>Environment Variables</strong>:
+      </p>
+      <div style="background:#1C1C1E;border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:13px;color:#F2F2F7;">
+        EMAIL_REMETENTE=frota@empresaexemplo.com.br<br>
+        EMAIL_NOTIFICACAO_FALLBACK=owner@empresaexemplo.com.br
+      </div>
+      <p style="font-size:12px;color:var(--cinza-400);margin-top:10px;">
+        O remetente precisa ser uma caixa de e-mail que o Azure AD tem permissão para enviar.
+        O fallback é usado se nenhum gestor estiver cadastrado no sistema.
+      </p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function disparar(tipo) {
+  const btn = document.getElementById('btnTodas');
+  const div = document.getElementById('resultado');
+  btn.disabled = true;
+
+  div.style.display = 'block';
+  div.style.background = '#F2F2F7';
+  div.style.color = '#636366';
+  div.textContent = 'Enviando notificações...';
+
+  try {
+    const res  = await postJSON('/admin/notificacoes/disparar', { tipo });
+    const data = await res.json();
+    if (data.ok) {
+      div.style.background = '#E8F9EE';
+      div.style.color = '#1a6e35';
+      const r = data.resultado;
+      div.innerHTML = `✓ Notificações disparadas:<br>
+        CRLV: ${r.crlv} · CNH: ${r.cnh} · OS: ${r.os} · Pneus: ${r.pneus}`;
+    } else {
+      throw new Error(data.erro || 'Erro desconhecido');
+    }
+  } catch (e) {
+    div.style.background = '#FFF1F0';
+    div.style.color = '#c0241a';
+    div.textContent = 'Erro: ' + e.message;
+  }
+  btn.disabled = false;
+}
+</script>
+{% endblock %}

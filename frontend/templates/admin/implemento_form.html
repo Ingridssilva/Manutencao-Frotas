@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if imp else 'Novo' }} Implemento{% endblock %}
+{% block page_title %}{{ 'Editar' if imp else 'Novo' }} Implemento{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.catalogo') }}#implementos" class="btn btn-secondary btn-sm">← Catálogo</a>
+{% endblock %}
+{% block content %}
+<div style="max-width:580px;">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">
+        <span style="width:26px;height:26px;background:var(--roxo-soft);border:1px solid var(--roxo-border);border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-right:4px;">🏗</span>
+        {{ 'Editar Implemento' if imp else 'Novo Implemento' }}
+      </span>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Categoria *</label>
+            <div class="ss-wrap" data-catalog="categoriasImp" data-hidden-name="categoria_id" data-required="true"
+                 {% if imp and imp.categoria_id %}data-selected="{{ imp.categoria_id }}"{% endif %}
+                 data-placeholder="Buscar categoria..."></div>
+          </div>
+          <div class="form-group full">
+            <label>Nome do implemento *</label>
+            <input type="text" name="nome" value="{{ imp.nome if imp else '' }}" required placeholder="Ex: Blindagem, Guindaste, Carreta...">
+          </div>
+          <div class="form-group">
+            <label>Código interno</label>
+            <input type="text" name="codigo" value="{{ imp.codigo if imp else '' }}" placeholder="código interno">
+          </div>
+          <div class="form-group">
+            <label>Fabricante</label>
+            <input type="text" name="fabricante" value="{{ imp.fabricante if imp else '' }}" placeholder="Ex: Librelato, Randon...">
+          </div>
+          <div class="form-group">
+            <label>Valor referência (R$)</label>
+            <input type="number" name="valor_referencia" step="0.01" value="{{ imp.valor_referencia if imp else '' }}" placeholder="0,00">
+          </div>
+          <div class="form-group full">
+            <label>Descrição</label>
+            <textarea name="descricao" rows="2" placeholder="Detalhes do implemento...">{{ imp.descricao if imp else '' }}</textarea>
+          </div>
+          {% if imp %}
+          <div class="form-group">
+            <label>Status</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:400;color:var(--text-primary);">
+              <input type="checkbox" name="ativo" {% if imp.ativo %}checked{% endif %}> Ativo
+            </label>
+          </div>
+          {% endif %}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end;">
+          <a href="{{ url_for('admin.catalogo') }}#implementos" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">{{ 'Atualizar' if imp else 'Criar Implemento' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  categoriasImp: [
+    {% for c in categorias %}
+    {id:"{{ c.id }}", nome:{{ c.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}
