@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Motoristas{% endblock %}
+{% block page_title %}Motoristas{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+  {# ── Importar ── #}
+  <button type="button" class="btn btn-secondary btn-sm"
+          onclick="document.getElementById('modal-import').style.display='flex'">
+    ↑ Importar Excel
+  </button>
+  {# ── Exportar ── #}
+  <a href="{{ url_for('motoristas.exportar') }}" class="btn btn-secondary btn-sm">
+    ↓ Exportar Excel
+  </a>
+  {# ── Modelo ── #}
+  <a href="{{ url_for('motoristas.modelo') }}" class="btn btn-secondary btn-sm"
+     title="Baixar planilha modelo para preenchimento">
+    ⊞ Modelo .xlsx
+  </a>
+  <a href="{{ url_for('motoristas.novo') }}" class="btn btn-primary btn-sm">+ Novo Motorista</a>
+</div>
+{% endblock %}
+{% block content %}
+
+{# ── MODAL DE IMPORTAÇÃO ─────────────────────────────────── #}
+<div id="modal-import"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+            z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card,#fff);border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 8px 40px rgba(0,0,0,.4);position:relative;">
+    <button onclick="document.getElementById('modal-import').style.display='none'"
+            style="position:absolute;top:16px;right:16px;background:none;border:none;
+                   font-size:22px;cursor:pointer;color:var(--cinza-500);">×</button>
+
+    <h3 style="margin:0 0 6px;font-size:18px;">Importar Motoristas</h3>
+    <p style="margin:0 0 20px;font-size:13px;color:var(--cinza-500);">
+      Envie um arquivo <strong>.xlsx</strong> com os motoristas.<br>
+      Se o CPF já existir no sistema, os dados serão <strong>atualizados</strong>.<br>
+      Sem CPF, o motorista é sempre criado como novo.
+    </p>
+
+    <form method="POST" action="{{ url_for('motoristas.importar') }}"
+          enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label>Arquivo Excel (.xlsx)</label>
+        <input type="file" name="arquivo" accept=".xlsx,.xlsm" required
+               style="padding:8px;border:1px dashed var(--cinza-300);border-radius:8px;
+                      width:100%;box-sizing:border-box;cursor:pointer;">
+      </div>
+
+      <p style="font-size:12px;color:var(--cinza-400);margin:8px 0 20px;">
+        Não tem o modelo?
+        <a href="{{ url_for('motoristas.modelo') }}" style="color:var(--laranja);">
+          Baixe aqui o modelo →
+        </a>
+      </p>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary"
+                onclick="document.getElementById('modal-import').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="min-width:260px;margin:0;"><label>Buscar</label><input type="text" name="q" value="{{ q }}" placeholder="Nome ou CPF..."></div>
+      <div class="form-group" style="margin:0;"><label>Status</label>
+        <select name="ativo" onchange="this.form.submit()">
+          <option value="1" {% if ativo=='1' %}selected{% endif %}>Ativos</option>
+          <option value="0" {% if ativo=='0' %}selected{% endif %}>Inativos</option>
+          <option value="" {% if ativo=='' %}selected{% endif %}>Todos</option>
+        </select></div>
+      <div class="form-group" style="margin:0;"><label>Apto a dirigir</label>
+        <select name="apto" onchange="this.form.submit()">
+          <option value="" {% if apto=='' %}selected{% endif %}>Todos</option>
+          <option value="1" {% if apto=='1' %}selected{% endif %}>Aptos</option>
+          <option value="0" {% if apto=='0' %}selected{% endif %}>Inaptos</option>
+        </select></div>
+      <button type="submit" class="btn btn-secondary">Buscar</button>
+    </form>
+  </div>
+</div>
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if motoristas.items %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nome</th><th>CPF</th><th>CNH</th><th>Categoria</th><th>Validade CNH</th><th>Veículo</th><th>Apto</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for m in motoristas.items %}
+          {% set dias_cnh = (m.cnh_validade - hoje).days if m.cnh_validade else 999 %}
+          <tr>
+            <td style="font-weight:500;">{{ m.nome }}</td>
+            <td class="mono text-small">{{ m.cpf or '—' }}</td>
+            <td class="mono text-small">{{ m.cnh_numero or '—' }}</td>
+            <td><span class="badge badge-cinza">{{ m.cnh_categoria or '—' }}</span></td>
+            <td style="font-size:13px;color:{% if dias_cnh < 0 %}var(--vermelho){% elif dias_cnh < 60 %}var(--laranja){% else %}var(--grafite){% endif %};">
+              {{ m.cnh_validade.strftime('%d/%m/%Y') if m.cnh_validade else '—' }}
+              {% if dias_cnh < 0 %}<strong> (VENC.)</strong>{% elif dias_cnh < 60 %}<span style="font-size:11px;">({{ dias_cnh }}d)</span>{% endif %}
+            </td>
+            <td style="font-family:var(--mono);font-size:13px;color:var(--laranja);">{{ m.veiculo_principal.placa if m.veiculo_principal else '—' }}</td>
+            <td>{% if m.apto_dirigir %}<span class="badge badge-verde">Apto</span>{% else %}<span class="badge badge-vermelho">Inapto</span>{% endif %}</td>
+            <td>{% if m.ativo %}<span class="badge badge-verde">Ativo</span>{% else %}<span class="badge badge-cinza">Inativo</span>{% endif %}</td>
+            <td>
+              <a href="{{ url_for('motoristas.detalhe', id=m.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a>
+              <a href="{{ url_for('motoristas.editar', id=m.id) }}" class="btn btn-secondary btn-sm btn-icon">✎</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if motoristas.pages > 1 %}
+    <div class="pagination">
+      {% for p in motoristas.iter_pages() %}
+        {% if p %}<a href="?page={{ p }}&q={{ q }}&ativo={{ ativo }}&apto={{ apto }}" class="page-btn {% if p == motoristas.page %}active{% endif %}">{{ p }}</a>
+        {% else %}<span style="padding:0 4px;color:var(--cinza-300);">…</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}<div class="empty-state"><div class="empty-state-icon">◉</div>Nenhum motorista encontrado.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Motorista{% endblock %}
+{% block page_title %}{% if m %}Editar motorista{% else %}Novo motorista{% endif %}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:800px;">
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group"><label>Nome *</label><input type="text" name="nome" value="{{ m.nome if m else '' }}" required></div>
+        <div class="form-group"><label>CPF</label><input type="text" name="cpf" value="{{ m.cpf if m else '' }}" placeholder="000.000.000-00"></div>
+        <div class="form-group"><label>Matrícula</label><input type="text" name="matricula" value="{{ m.matricula if m else '' }}"></div>
+        <div class="form-group"><label>Telefone</label><input type="text" name="telefone" value="{{ m.telefone if m else '' }}"></div>
+        <div class="form-group"><label>E-mail</label><input type="email" name="email" value="{{ m.email if m else '' }}"></div>
+        <div class="form-group"><label>Município</label><input type="text" name="municipio" value="{{ m.municipio if m else '' }}"></div>
+        <div class="form-group"><label>Nº CNH</label><input type="text" name="cnh_numero" value="{{ m.cnh_numero if m else '' }}"></div>
+        <div class="form-group"><label>Categoria CNH</label>
+          <select name="cnh_categoria">
+            <option value="">—</option>
+            {% for c in ['A','B','C','D','E','AB','AC','AD','AE'] %}
+            <option value="{{ c }}" {% if m and m.cnh_categoria == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Validade CNH</label>
+          <input type="date" name="cnh_validade" value="{{ m.cnh_validade.strftime('%Y-%m-%d') if m and m.cnh_validade else '' }}">
+        </div>
+        <div class="form-group"><label>1ª habilitação</label>
+          <input type="date" name="cnh_primeira_hab" value="{{ m.cnh_primeira_hab.strftime('%Y-%m-%d') if m and m.cnh_primeira_hab else '' }}">
+        </div>
+        <div class="form-group"><label>Pontos CNH</label>
+          <input type="number" name="cnh_pontos" value="{{ m.cnh_pontos if m else 0 }}" min="0" max="40">
+        </div>
+        <div class="form-group"><label>Veículo principal</label>
+          <div class="ss-wrap" data-catalog="veiculosMot" data-hidden-name="veiculo_principal_id"
+               {% if m and m.veiculo_principal_id %}data-selected="{{ m.veiculo_principal_id }}"{% endif %}
+               data-placeholder="Buscar por placa..."></div>
+        </div>
+        {% if m %}
+        <div class="form-group">
+          <label>Status</label>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-weight:normal; cursor:pointer;">
+            <input type="checkbox" name="ativo" {% if m.ativo %}checked{% endif %} style="width:auto;">
+            Motorista ativo
+          </label>
+        </div>
+        {% endif %}
+        <div class="form-group full"><label>Observações</label>
+          <textarea name="observacoes">{{ m.observacoes if m else '' }}</textarea>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+        <a href="{{ url_for('motoristas.lista') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosMot: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ v.placa | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

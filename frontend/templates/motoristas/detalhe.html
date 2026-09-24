@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% block title %}{{ m.nome }}{% endblock %}
+{% block page_title %}{{ m.nome }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('motoristas.editar', id=m.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+  <a href="{{ url_for('checklist.novo') }}?motorista={{ m.id }}" class="btn btn-secondary btn-sm">+ Checklist</a>
+  <a href="{{ url_for('motoristas.lista') }}" class="btn btn-secondary btn-sm">← Lista</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="margin-bottom:20px; align-items:start;">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Dados pessoais</span>
+      {% if not m.ativo %}<span class="badge badge-cinza">Inativo</span>{% endif %}
+    </div>
+    <div class="card-body">
+      <div style="display:flex; gap:16px; align-items:center; margin-bottom:18px;">
+        <div style="width:56px; height:56px; border-radius:50%; background:var(--laranja-soft); color:var(--laranja); font-weight:700; font-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          {{ m.nome[:2].upper() }}
+        </div>
+        <div>
+          <div style="font-size:18px; font-weight:600;">{{ m.nome }}</div>
+          {% if m.matricula %}<div style="font-size:13px; color:var(--cinza-500);">Matrícula: {{ m.matricula }}</div>{% endif %}
+        </div>
+      </div>
+      <table style="font-size:13px; width:100%;">
+        <tr><td style="color:var(--cinza-500); padding:5px 0; width:130px;">CPF</td><td class="mono">{{ m.cpf or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Telefone</td><td>{{ m.telefone or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">E-mail</td><td>{{ m.email or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Município</td><td>{{ m.municipio or '—' }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── APTO A DIRIGIR (toggle lateral) ── -->
+  <div class="card" id="card-apto">
+    <div class="card-header"><span class="card-title">Situação para dirigir</span></div>
+    <div class="card-body">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px;">
+        <div>
+          <div id="apto-label" style="font-size:18px; font-weight:700; color:{% if m.apto_dirigir %}var(--verde){% else %}var(--vermelho){% endif %};">
+            {{ 'Apto a dirigir' if m.apto_dirigir else 'Inapto a dirigir' }}
+          </div>
+          <div id="apto-sub" style="font-size:12px; color:var(--cinza-500); margin-top:2px;">
+            {% if m.apto_atualizado_em %}
+              Atualizado em {{ m.apto_atualizado_em.strftime('%d/%m/%Y %H:%M') }}
+            {% else %}
+              Ainda não alterado
+            {% endif %}
+          </div>
+        </div>
+        <label style="position:relative; display:inline-block; width:52px; height:28px; flex-shrink:0; cursor:pointer;">
+          <input type="checkbox" id="apto-switch" {% if m.apto_dirigir %}checked{% endif %}
+                 onchange="onToggleApto(this)" style="opacity:0; width:0; height:0;">
+          <span id="apto-track" style="position:absolute; inset:0; border-radius:999px; transition:.2s;
+                background:{% if m.apto_dirigir %}var(--verde){% else %}var(--cinza-300){% endif %};"></span>
+          <span id="apto-knob" style="position:absolute; top:3px; left:{% if m.apto_dirigir %}27px{% else %}3px{% endif %};
+                width:22px; height:22px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.4);"></span>
+        </label>
+      </div>
+      {% if not m.apto_dirigir and m.apto_motivo %}
+      <div style="font-size:12px; padding:8px 10px; background:var(--vermelho-soft); color:var(--vermelho); border-radius:8px; margin-top:4px;">
+        Motivo: {{ m.apto_motivo }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">CNH</span></div>
+    <div class="card-body">
+      {% set dias_cnh = m.cnh_dias_restantes %}
+      <div style="text-align:center; padding:16px 0;">
+        <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--cinza-500); margin-bottom:4px;">Categoria</div>
+        <div style="font-size:52px; font-weight:700; color:{% if m.cnh_vencida %}var(--vermelho){% elif dias_cnh and dias_cnh < 60 %}var(--laranja){% else %}var(--laranja){% endif %}; line-height:1;">{{ m.cnh_categoria or '—' }}</div>
+      </div>
+      <table style="font-size:13px; width:100%;">
+        <tr><td style="color:var(--cinza-500); padding:5px 0; width:130px;">Número</td><td class="mono">{{ m.cnh_numero or '—' }}</td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Validade</td>
+            <td style="color:{% if m.cnh_vencida %}var(--vermelho){% elif dias_cnh and dias_cnh < 60 %}var(--laranja){% else %}var(--grafite){% endif %}; font-weight:600;">
+              {{ m.cnh_validade.strftime('%d/%m/%Y') if m.cnh_validade else '—' }}
+              {% if m.cnh_vencida %}<span style="font-size:11px;">(VENCIDA)</span>
+              {% elif dias_cnh and dias_cnh < 90 %}<span style="font-size:11px;">({{ dias_cnh }}d)</span>{% endif %}
+            </td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Pontos</td>
+            <td style="color:{% if m.cnh_pontos and m.cnh_pontos >= 20 %}var(--vermelho){% else %}var(--grafite){% endif %};">
+              {{ m.cnh_pontos or 0 }} pts
+            </td></tr>
+        <tr><td style="color:var(--cinza-500); padding:5px 0;">Status</td>
+            <td>
+              {% if m.cnh_status == 'regular' %}<span class="badge badge-verde">Regular</span>
+              {% elif m.cnh_status == 'vencida' %}<span class="badge badge-vermelho">Vencida</span>
+              {% elif m.cnh_status == 'suspensa' %}<span class="badge badge-laranja">Suspensa</span>
+              {% else %}<span class="badge badge-cinza">{{ m.cnh_status }}</span>{% endif %}
+            </td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Documentos do motorista -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><span class="card-title">Documentos</span></div>
+  <div class="card-body">
+    <div id="docsGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px;">
+      {% for tipo, nome in tipos_doc.items() %}
+      {% set doc = m.documento(tipo) %}
+      <div class="doc-card" data-tipo="{{ tipo }}" style="border:1px solid var(--border-default); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+        <div style="font-size:12px; font-weight:600; color:var(--cinza-500); text-transform:uppercase; letter-spacing:.04em;">{{ nome }}</div>
+
+        <div class="doc-card-status" style="flex:1; display:flex; align-items:center; gap:8px; font-size:13px;">
+          {% if doc %}
+            <span class="badge badge-verde">Anexado</span>
+            <a href="{{ doc.url_sharepoint }}" target="_blank" style="color:var(--laranja); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Abrir ↗</a>
+          {% else %}
+            <span class="badge badge-cinza">Não anexado</span>
+          {% endif %}
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex:1;"
+                  onclick="document.getElementById('input-{{ tipo }}').click()">
+            {% if doc %}Substituir{% else %}Anexar{% endif %}
+          </button>
+          {% if doc %}
+          <button type="button" class="btn btn-secondary btn-sm btn-icon" title="Remover"
+                  onclick="removerDocumento('{{ tipo }}', {{ doc.id }})">🗑</button>
+          {% endif %}
+        </div>
+        <input type="file" id="input-{{ tipo }}" accept=".jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.pdf"
+               style="display:none;" onchange="enviarDocumento('{{ tipo }}', this)">
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Veículo principal -->
+{% if m.veiculo_principal %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><span class="card-title">Veículo principal</span></div>
+  <div class="card-body">
+    <a href="{{ url_for('veiculos.detalhe', id=m.veiculo_principal.id) }}" style="display:flex; align-items:center; gap:14px; text-decoration:none; color:inherit;">
+      <div style="font-size:24px; font-family:var(--mono); font-weight:700; color:var(--laranja);">{{ m.veiculo_principal.placa }}</div>
+      <div>
+        <div style="font-size:14px; font-weight:500;">{{ m.veiculo_principal.nome_display }}</div>
+        <div style="font-size:12px; color:var(--cinza-500);">{{ m.veiculo_principal.municipio_base or '' }}</div>
+      </div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Multas -->
+{% set multas = m.multas.filter_by(status='pendente').all() %}
+{% if multas %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">Multas pendentes</span>
+    <span class="badge badge-vermelho">{{ multas|length }}</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table style="font-size:13px; width:100%;">
+      {% for mu in multas %}
+      <tr style="border-bottom:1px solid var(--cinza-50);">
+        <td style="padding:10px 22px;">{{ mu.data_infracao.strftime('%d/%m/%Y') }}</td>
+        <td>{{ mu.descricao or '—' }}</td>
+        <td style="font-weight:600;">R$ {{ '{:,.2f}'.format(mu.valor_original).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+        <td style="padding:10px 22px;">
+          <form method="POST" action="{{ url_for('multas.pagar', id=mu.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Quitar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Últimos checklists -->
+{% set chks = ultimos_checklists %}
+{% if chks %}
+<div class="card">
+  <div class="card-header"><span class="card-title">Últimos checklists</span></div>
+  <div class="card-body" style="padding:0;">
+    <table style="font-size:13px; width:100%;">
+      {% for chk in chks %}
+      <tr style="border-bottom:1px solid var(--cinza-50);">
+        <td style="padding:9px 22px;">{{ chk.data_checklist.strftime('%d/%m/%Y') }}</td>
+        <td style="font-family:var(--mono); font-weight:600; color:var(--laranja);">{{ chk.veiculo.placa }}</td>
+        <td>
+          {% if chk.status_geral == 'aprovado' %}<span class="badge badge-verde">Aprovado</span>
+          {% elif chk.status_geral == 'aprovado_com_ressalvas' %}<span class="badge badge-laranja">Ressalvas</span>
+          {% else %}<span class="badge badge-vermelho">Reprovado</span>{% endif %}
+        </td>
+        <td style="padding:9px 22px;"><a href="{{ url_for('checklist.detalhe', id=chk.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const MOTORISTA_ID = {{ m.id }};
+
+// ── Toggle "apto a dirigir" ──────────────────────────────────────────────
+async function onToggleApto(checkbox){
+  const aptoNovo = checkbox.checked;
+  let motivo = '';
+
+  if(!aptoNovo){
+    motivo = prompt('Motivo da inaptidão (opcional):') || '';
+    if(motivo === null){ checkbox.checked = true; return; }
+  }
+
+  try{
+    const res = await fetch(`/motoristas/${MOTORISTA_ID}/apto`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'X-CSRFToken': window.CSRF_TOKEN || ''},
+      body: JSON.stringify({apto: aptoNovo, motivo: motivo}),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.erro || 'Falha ao atualizar.');
+
+    const track = document.getElementById('apto-track');
+    const knob  = document.getElementById('apto-knob');
+    const label = document.getElementById('apto-label');
+    const sub   = document.getElementById('apto-sub');
+
+    track.style.background = aptoNovo ? 'var(--verde)' : 'var(--cinza-300)';
+    knob.style.left        = aptoNovo ? '27px' : '3px';
+    label.textContent      = aptoNovo ? 'Apto a dirigir' : 'Inapto a dirigir';
+    label.style.color      = aptoNovo ? 'var(--verde)' : 'var(--vermelho)';
+    const agora = new Date();
+    sub.textContent = 'Atualizado em ' + agora.toLocaleDateString('pt-BR') + ' ' +
+                       agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+    location.reload();  // garante que o card de motivo (se houver) reflita o estado real
+  }catch(e){
+    checkbox.checked = !aptoNovo;
+    alert('Erro: ' + e.message);
+  }
+}
+
+// ── Documentos do motorista ──────────────────────────────────────────────
+async function enviarDocumento(tipo, input){
+  const file = input.files[0];
+  if(!file) return;
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try{
+    const res = await fetch(`/motoristas/${MOTORISTA_ID}/documentos/${tipo}`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': window.CSRF_TOKEN || ''},
+      body: fd,
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.erro || 'Falha no upload.');
+    location.reload();
+  }catch(e){
+    alert('Erro ao enviar documento: ' + e.message);
+  }finally{
+    input.value = '';
+  }
+}
+
+async function removerDocumento(tipo, docId){
+  if(!confirm('Remover este documento?')) return;
+  try{
+    const res = await fetch(`/motoristas/${MOTORISTA_ID}/documentos/${docId}`, {
+      method: 'DELETE',
+      headers: {'X-CSRFToken': window.CSRF_TOKEN || ''},
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.erro || 'Falha ao remover.');
+    location.reload();
+  }catch(e){
+    alert('Erro: ' + e.message);
+  }
+}
+</script>
+{% endblock %}
