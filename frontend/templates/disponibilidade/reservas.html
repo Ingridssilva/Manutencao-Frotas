@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block title %}Reservas de Veículo{% endblock %}
+{% block page_title %}Reservas de Veículo{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('disponibilidade.index') }}" class="btn btn-secondary btn-sm">← Disponibilidade</a>
+  <a href="{{ url_for('reservas.nova_reserva') }}" class="btn btn-primary btn-sm" target="_blank">+ Nova Requisição</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ── FILTRO ─────────────────────────────────────────────────── */
+.filter-tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+.filter-tab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;text-decoration:none;
+  border:1px solid var(--border-default);color:var(--text-tertiary);transition:all .15s}
+.filter-tab.active,.filter-tab:hover{background:var(--laranja);color:#000;border-color:var(--laranja)}
+
+/* ── CARDS ──────────────────────────────────────────────────── */
+.reservas-grid{display:flex;flex-direction:column;gap:12px}
+.res-card{
+  background:var(--bg-card);border:1px solid var(--border-default);
+  border-radius:var(--radius-lg);padding:18px;
+  display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;
+  transition:border-color .2s;
+}
+.res-card:hover{border-color:var(--border-strong);box-shadow:0 4px 24px rgba(0,0,0,.3)}
+.res-nome{font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:2px}
+.res-setor{font-size:12px;color:var(--text-tertiary);margin-bottom:10px}
+
+/* ── INFO GRID ──────────────────────────────────────────────── */
+.res-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.res-info-item{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;padding:8px 10px}
+.res-info-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:3px}
+.res-info-val{font-size:13px;font-weight:500;color:var(--text-primary)}
+
+/* ── LADO DIREITO ───────────────────────────────────────────── */
+.res-right{display:flex;flex-direction:column;gap:8px;align-items:flex-end;min-width:140px}
+
+/* ── BADGES ─────────────────────────────────────────────────── */
+.badge-status{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.04em}
+.badge-pendente {background:rgba(255,184,0,.15);color:#FFD000;border:1px solid rgba(255,184,0,.30)}
+.badge-aprovada {background:rgba(0,232,138,.10);color:var(--verde);border:1px solid rgba(0,232,138,.25)}
+.badge-rejeitada{background:rgba(255,58,58,.10);color:var(--vermelho);border:1px solid rgba(255,58,58,.25)}
+.badge-cancelada{background:rgba(255,255,255,.05);color:var(--text-tertiary);border:1px solid var(--border-default)}
+.badge-concluida{background:rgba(77,158,255,.10);color:var(--azul);border:1px solid rgba(77,158,255,.25)}
+
+/* ── BOTÕES DE AÇÃO ─────────────────────────────────────────── */
+.res-actions{display:flex;flex-direction:column;gap:6px;width:100%}
+.btn-acao{font-size:12px;padding:7px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600;width:100%;text-align:center;transition:all .12s}
+.btn-aprovar{background:var(--verde);color:#000}.btn-aprovar:hover{filter:brightness(1.15)}
+.btn-rejeitar{background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-default)}.btn-rejeitar:hover{background:var(--vermelho);color:#fff;border-color:var(--vermelho)}
+.btn-concluir{background:var(--azul);color:#fff}.btn-concluir:hover{filter:brightness(1.15)}
+
+/* ── OBSERVAÇÃO / EMPTY ─────────────────────────────────────── */
+.res-obs{font-size:12px;color:var(--text-tertiary);margin-top:8px;font-style:italic}
+.empty-state{text-align:center;padding:48px;color:var(--text-tertiary)}
+.empty-state .icon{font-size:36px;margin-bottom:12px}
+
+/* ── MODAL ──────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg-card);border:1px solid var(--border-strong);border-radius:var(--radius-lg);padding:24px;width:440px;max-width:95vw;box-shadow:0 16px 48px rgba(0,0,0,.6)}
+.modal-title{font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:18px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:5px}
+.form-group select,.form-group input,.form-group textarea{
+  width:100%;padding:8px 10px;
+  background:var(--bg-elevated);
+  border:1px solid var(--border-default);
+  border-radius:8px;font-size:13px;font-family:inherit;
+  color:var(--text-primary);outline:none;
+}
+.form-group select:focus,.form-group input:focus,.form-group textarea:focus{border-color:var(--laranja)}
+.form-group textarea{min-height:70px;resize:vertical}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filtro de status -->
+<div class="filter-tabs">
+  {% for s,label in [('pendente','⏳ Pendentes'),('aprovada','✅ Aprovadas'),('rejeitada','❌ Rejeitadas'),('concluida','🏁 Concluídas'),('cancelada','🚫 Canceladas'),('todos','Todas')] %}
+  <a href="?status={{ s }}" class="filter-tab {% if status_f==s %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="reservas-grid">
+  {% if reservas %}
+    {% for r in reservas %}
+    <div class="res-card">
+      <div class="res-left">
+        <div class="res-nome">{{ r.nome_solicitante }}</div>
+        <div class="res-setor">{{ r.setor_solicitante or '—' }}{% if r.contato %} · {{ r.contato }}{% endif %}</div>
+
+        <div class="res-info-grid">
+          <div class="res-info-item">
+            <div class="res-info-label">📅 Saída</div>
+            <div class="res-info-val">{{ r.data_inicio.strftime('%d/%m/%Y') }}</div>
+          </div>
+          <div class="res-info-item">
+            <div class="res-info-label">🔙 Retorno</div>
+            <div class="res-info-val">{{ r.data_fim.strftime('%d/%m/%Y') }}</div>
+          </div>
+          <div class="res-info-item">
+            <div class="res-info-label">📍 Destino</div>
+            <div class="res-info-val">{{ r.destino }}</div>
+          </div>
+          <div class="res-info-item">
+            <div class="res-info-label">👥 Passageiros</div>
+            <div class="res-info-val">{{ r.n_passageiros or 1 }}</div>
+          </div>
+          {% if r.tipo_veiculo_pref %}
+          <div class="res-info-item">
+            <div class="res-info-label">🚗 Pref. tipo</div>
+            <div class="res-info-val">{{ r.tipo_veiculo_pref }}</div>
+          </div>
+          {% endif %}
+          {% if r.veiculo %}
+          <div class="res-info-item" style="background:rgba(var(--laranja-rgb),.08)">
+            <div class="res-info-label">🚘 Veículo</div>
+            <div class="res-info-val" style="color:var(--laranja);font-family:var(--mono)">{{ r.veiculo.placa }}</div>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if r.finalidade %}
+        <div class="res-obs">📝 {{ r.finalidade }}</div>
+        {% endif %}
+        {% if r.obs_admin %}
+        <div class="res-obs" style="color:var(--cinza-400)">💬 Obs: {{ r.obs_admin }}</div>
+        {% endif %}
+      </div>
+
+      <div class="res-right">
+        <span class="badge-status badge-{{ r.status }}">{{ r.status_label }}</span>
+
+        {% if r.status == 'pendente' %}
+        <div class="res-actions">
+          <button class="btn-acao btn-aprovar" onclick="abrirAprovar({{ r.id }})">✅ Aprovar</button>
+          <button class="btn-acao btn-rejeitar" onclick="abrirAcao({{ r.id }},'rejeitar')">❌ Rejeitar</button>
+        </div>
+        {% elif r.status == 'aprovada' %}
+        <div class="res-actions">
+          <button class="btn-acao btn-concluir" onclick="abrirAcao({{ r.id }},'concluir')">🏁 Concluir</button>
+          <button class="btn-acao btn-rejeitar" onclick="abrirAcao({{ r.id }},'cancelar')">Cancelar</button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="icon">📋</div>
+      <div>Nenhuma reserva {{ status_f if status_f != 'todos' else '' }} encontrada.</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal Aprovar -->
+<div class="modal-overlay" id="modalAprovar" onclick="if(event.target===this)fecharModal('modalAprovar')">
+  <div class="modal">
+    <div class="modal-title">✅ Aprovar Reserva</div>
+    <form method="POST" id="formAprovar">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="acao" value="aprovar">
+      <div class="form-group">
+        <label>Veículo designado</label>
+        <div class="ss-wrap" data-catalog="veiculosResv" data-hidden-name="veiculo_id" data-placeholder="Buscar por placa..."></div>
+      </div>
+      <div class="form-group">
+        <label>Observações (opcional)</label>
+        <textarea name="obs_admin" placeholder="Instruções, restrições, informações ao solicitante…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal('modalAprovar')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Confirmar Aprovação</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Rejeitar/Cancelar/Concluir -->
+<div class="modal-overlay" id="modalAcao" onclick="if(event.target===this)fecharModal('modalAcao')">
+  <div class="modal">
+    <div class="modal-title" id="modalAcaoTitle">Confirmar ação</div>
+    <form method="POST" id="formAcao">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="acao" id="acaoHidden">
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="obs_admin" id="obsAcao" placeholder="Opcional…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal('modalAcao')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnAcaoConfirm">Confirmar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosResv: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+function abrirAprovar(rid){
+  document.getElementById('formAprovar').action = '/disponibilidade/reservas/'+rid+'/acao';
+  document.getElementById('modalAprovar').classList.add('open');
+}
+function abrirAcao(rid, acao){
+  const labels = {rejeitar:'❌ Rejeitar Reserva', concluir:'🏁 Concluir Reserva', cancelar:'🚫 Cancelar Reserva'};
+  document.getElementById('formAcao').action = '/disponibilidade/reservas/'+rid+'/acao';
+  document.getElementById('acaoHidden').value = acao;
+  document.getElementById('modalAcaoTitle').textContent = labels[acao] || 'Confirmar';
+  document.getElementById('modalAcao').classList.add('open');
+}
+function fecharModal(id){ document.getElementById(id).classList.remove('open'); }
+</script>
+{% endblock %}

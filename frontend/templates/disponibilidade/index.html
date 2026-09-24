@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Disponibilidade{% endblock %}
+{% block page_title %}Disponibilidade Diária{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('reservas.lista_reservas') }}" class="btn btn-secondary btn-sm">
+    📋 Reservas{% if reservas_pendentes %} <span style="background:var(--vermelho);color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;margin-left:4px;">{{ reservas_pendentes }}</span>{% endif %}
+  </a>
+  <a href="{{ url_for('reservas.nova_reserva') }}" class="btn btn-primary btn-sm" target="_blank">🚗 Reservar Veículo</a>
+  <a href="{{ url_for('checklist.novo') }}" class="btn btn-secondary btn-sm">+ Checklist</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.disp-grid-wrap{overflow-x:auto}
+.disp-table{border-collapse:collapse;min-width:100%;font-size:12px}
+.disp-table th,.disp-table td{padding:0}
+.disp-placa-col{min-width:140px;max-width:160px;padding:8px 14px !important;position:sticky;left:0;background:var(--branco);z-index:2;border-right:2px solid var(--cinza-100)}
+.disp-placa-col strong{display:block;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--laranja)}
+.disp-placa-col span{font-size:11px;color:var(--cinza-400)}
+.disp-th-placa{position:sticky;left:0;background:var(--cinza-50);z-index:3;padding:8px 14px !important;border-right:2px solid var(--cinza-100)}
+.disp-day-th{text-align:center;width:38px;min-width:38px;padding:6px 2px !important;color:var(--cinza-500);font-size:10px;font-weight:600}
+.disp-day-th.today{color:var(--laranja)}
+.disp-day-th small{display:block;font-size:9px;font-weight:400}
+.disp-cell{text-align:center;width:38px;min-width:38px;height:40px;cursor:pointer;transition:all .12s;position:relative}
+.disp-cell:hover{z-index:1;transform:scale(1.15);box-shadow:var(--sombra-md);border-radius:4px}
+.disp-cell.disponivel{background:rgba(48,209,88,.14)}
+.disp-cell.indisponivel{background:rgba(255,69,58,.12)}
+.disp-cell.reservado{background:rgba(247,147,30,.15)}
+.disp-cell.sem-registro{background:var(--cinza-50)}
+.disp-cell.futuro{background:transparent;cursor:default}
+.disp-cell.futuro:hover{transform:none;box-shadow:none}
+.disp-dot{width:10px;height:10px;border-radius:50%;margin:auto;margin-top:9px}
+.dot-verde{background:var(--verde)}.dot-vermelho{background:var(--vermelho)}.dot-cinza{background:var(--cinza-300)}.dot-laranja{background:var(--laranja)}
+.disp-upe{font-size:8px;color:var(--cinza-500);margin-top:2px;line-height:1}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--branco);border-radius:var(--radius-lg);padding:24px;width:380px;max-width:95vw;box-shadow:var(--sombra-md)}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:18px}
+
+/* Alertas de reserva pendente */
+.reservas-alert{background:rgba(247,147,30,.07);border:1px solid rgba(247,147,30,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.reservas-alert-text{font-size:13px;color:var(--cinza-600)}
+.reservas-alert-text strong{color:var(--laranja)}
+.btn-ver-reservas{font-size:12px;font-weight:700;color:var(--laranja);background:rgba(247,147,30,.1);border:1px solid rgba(247,147,30,.25);border-radius:8px;padding:5px 12px;text-decoration:none;white-space:nowrap}
+.btn-ver-reservas:hover{background:rgba(247,147,30,.2)}
+
+/* Mini cards de reservas pendentes */
+.reservas-mini-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:20px}
+.res-mini-card{background:var(--branco);border:1px solid var(--cinza-100);border-radius:10px;padding:12px 14px;border-left:3px solid var(--laranja)}
+.res-mini-nome{font-size:13px;font-weight:600;margin-bottom:2px}
+.res-mini-info{font-size:11px;color:var(--cinza-500)}
+.res-mini-datas{font-size:11px;font-weight:600;color:var(--laranja);margin-top:4px}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if reservas_pendentes_list %}
+<div class="reservas-alert">
+  <div class="reservas-alert-text">
+    ⚠️ <strong>{{ reservas_pendentes }} reserva{{ 's' if reservas_pendentes > 1 else '' }} pendente{{ 's' if reservas_pendentes > 1 else '' }}</strong> aguardando aprovação
+  </div>
+  <a href="{{ url_for('reservas.lista_reservas', status='pendente') }}" class="btn-ver-reservas">Ver Reservas →</a>
+</div>
+
+<div class="reservas-mini-grid">
+  {% for r in reservas_pendentes_list %}
+  <div class="res-mini-card">
+    <div class="res-mini-nome">{{ r.nome_solicitante }}</div>
+    <div class="res-mini-info">{{ r.destino }}{% if r.setor_solicitante %} · {{ r.setor_solicitante }}{% endif %}</div>
+    <div class="res-mini-datas">{{ r.data_inicio.strftime('%d/%m') }} → {{ r.data_fim.strftime('%d/%m/%Y') }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+  <a href="?ano={{ mes_ant_ano }}&mes={{ mes_ant_mes }}" class="btn btn-secondary btn-sm">&#8592;</a>
+  <h2 style="font-size:20px;font-weight:600;letter-spacing:-.02em;">{{ MESES[mes] }} {{ ano }}</h2>
+  <a href="?ano={{ mes_prox_ano }}&mes={{ mes_prox_mes }}" class="btn btn-secondary btn-sm">&#8594;</a>
+  <a href="?ano={{ hoje.year }}&mes={{ hoje.month }}" class="btn btn-secondary btn-sm" style="margin-left:auto;">Hoje</a>
+</div>
+
+<div class="card">
+  <div class="disp-grid-wrap">
+    <table class="disp-table">
+      <thead>
+        <tr>
+          <th class="disp-th-placa">Veículo</th>
+          {% for d in datas %}
+          <th class="disp-day-th {% if d == hoje %}today{% endif %}">
+            {{ '%02d'|format(d.day) }}
+            <small>{{ ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.weekday()] }}</small>
+          </th>
+          {% endfor %}
+          <th style="padding:6px 14px;text-align:center;font-size:10px;color:var(--cinza-400);">%</th>
+          <th style="padding:6px 14px;text-align:center;font-size:10px;color:var(--cinza-400);">UPE</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in veiculos %}{% set vst = stats[v.id] %}
+        <tr>
+          <td class="disp-placa-col">
+            <strong>{{ v.placa }}</strong>
+            <span>{{ v.municipio_base or '—' }}</span>
+          </td>
+          {% for d in datas %}
+            {% set reg = idx.get(v.id, {}).get(d) %}
+            {% set tem_reserva = reservas_idx.get(v.id, {}).get(d) %}
+            {% if d > hoje %}
+              {% if tem_reserva %}
+                <td class="disp-cell reservado futuro" title="{{ d.strftime('%d/%m') }} — Reservado: {{ tem_reserva }}">
+                  <div class="disp-dot dot-laranja" style="opacity:.7;"></div>
+                </td>
+              {% else %}
+                <td class="disp-cell futuro"><div class="disp-dot dot-cinza" style="opacity:.25;"></div></td>
+              {% endif %}
+            {% elif reg %}
+              <td class="disp-cell {{ 'disponivel' if reg.disponivel else 'indisponivel' }}"
+                  onclick="abrirModal({{ v.id }},'{{ d }}',{{ 1 if reg.disponivel else 0 }},'{{ reg.motivo_indisponibilidade or '' }}','{{ reg.upe_impacto or '' }}','{{ (reg.observacoes or '')|replace("'","") }}')"
+                  title="{{ d.strftime('%d/%m') }} — {{ 'Disponivel' if reg.disponivel else (reg.motivo_indisponibilidade or 'Indisponivel') }}{% if tem_reserva %} | Reservado: {{ tem_reserva }}{% endif %}">
+                <div class="disp-dot {{ 'dot-verde' if reg.disponivel else 'dot-vermelho' }}"></div>
+                {% if reg.upe_impacto %}<div class="disp-upe">{{ '%.1f'|format(reg.upe_impacto|float) }}</div>{% endif %}
+                {% if tem_reserva %}<div style="font-size:7px;color:var(--laranja);margin-top:1px;">RES</div>{% endif %}
+              </td>
+            {% else %}
+              <td class="disp-cell {{ 'reservado' if tem_reserva else 'sem-registro' }}"
+                  onclick="abrirModal({{ v.id }},'{{ d }}',1,'','','')"
+                  title="{{ d.strftime('%d/%m') }} — {{ 'Reservado: ' + tem_reserva if tem_reserva else 'Sem registro' }}">
+                <div class="disp-dot {{ 'dot-laranja' if tem_reserva else 'dot-cinza' }}" style="opacity:.6;"></div>
+                {% if tem_reserva %}<div style="font-size:7px;color:var(--laranja);margin-top:1px;">RES</div>{% endif %}
+              </td>
+            {% endif %}
+          {% endfor %}
+          <td style="text-align:center;font-size:12px;font-weight:600;padding:0 8px;color:{% if vst.pct>=90 %}var(--verde){% elif vst.pct>=70 %}var(--laranja){% else %}var(--vermelho){% endif %};">{{ vst.pct }}%</td>
+          <td style="text-align:center;font-size:12px;color:var(--cinza-500);padding:0 8px;">{{ '%.1f'|format(vst.upe) if vst.upe else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--cinza-500);flex-wrap:wrap;">
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--verde);"></span>Disponivel</span>
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--vermelho);"></span>Indisponivel</span>
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--laranja);"></span>Reservado</span>
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--cinza-300);"></span>Sem registro</span>
+  <span style="margin-left:auto;">Clique em qualquer celula para lancar</span>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)fechar()">
+  <div class="modal">
+    <div class="modal-title" id="mTitle">Lancar disponibilidade</div>
+    <div class="form-group" style="margin-bottom:14px;"><label>Status</label>
+      <select id="mDisp" onchange="toggleMotivo()">
+        <option value="1">Disponivel</option>
+        <option value="0">Indisponivel</option>
+      </select></div>
+    <div id="motiWrap" class="form-group" style="margin-bottom:14px;display:none;"><label>Motivo</label>
+      <select id="mMotivo">
+        <option value="">Selecione</option>
+        <option value="manutencao">Manutencao</option>
+        <option value="sem_motorista">Sem motorista</option>
+        <option value="acidente">Acidente</option>
+        <option value="vistoria">Vistoria</option>
+        <option value="outro">Outro</option>
+      </select></div>
+    <div id="upeWrap" class="form-group" style="margin-bottom:14px;display:none;"><label>UPE impacto</label>
+      <input type="number" id="mUpe" step="0.001" placeholder="0.000"></div>
+    <div class="form-group" style="margin-bottom:20px;"><label>Observacao</label>
+      <input type="text" id="mObs" placeholder="opcional"></div>
+    <input type="hidden" id="mVeic"><input type="hidden" id="mData">
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button type="button" class="btn btn-secondary" onclick="fechar()">Cancelar</button>
+      <button type="button" class="btn btn-primary" onclick="salvar()">Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function abrirModal(vid,data,disp,mot,upe,obs){
+  document.getElementById('mVeic').value=vid;
+  document.getElementById('mData').value=data;
+  document.getElementById('mDisp').value=disp;
+  document.getElementById('mMotivo').value=mot;
+  document.getElementById('mUpe').value=upe;
+  document.getElementById('mObs').value=obs;
+  document.getElementById('mTitle').textContent='Lancar — '+data;
+  toggleMotivo();
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function fechar(){document.getElementById('modalOverlay').classList.remove('open');}
+function toggleMotivo(){
+  const disp=document.getElementById('mDisp').value==='1';
+  document.getElementById('motiWrap').style.display=disp?'none':'flex';
+  document.getElementById('upeWrap').style.display=disp?'none':'flex';
+}
+async function salvar(){
+  const b=new FormData();
+  b.append('veiculo_id',document.getElementById('mVeic').value);
+  b.append('data',document.getElementById('mData').value);
+  b.append('disponivel',document.getElementById('mDisp').value);
+  b.append('motivo',document.getElementById('mMotivo').value);
+  b.append('upe_impacto',document.getElementById('mUpe').value);
+  b.append('observacoes',document.getElementById('mObs').value);
+  try{const r=await fetch('/disponibilidade/lancar',{method:'POST',headers:{'X-CSRFToken':window.CSRF_TOKEN||''},body:b});const d=await r.json();
+  if(d.ok){fechar();location.reload();}else alert('Erro: '+d.erro);}catch(e){alert('Erro: '+e);}
+}
+</script>
+{% endblock %}
