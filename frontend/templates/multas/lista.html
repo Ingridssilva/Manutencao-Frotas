@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Multas{% endblock %}
+{% block page_title %}Multas{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('multas.nova') }}" class="btn btn-primary btn-sm">+ Nova Multa</a>{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="min-width:180px;margin:0;"><label>Veículo</label>
+        <div class="ss-wrap" data-catalog="veiculosFiltroMultas" data-hidden-name="veiculo_id" data-submit="true"
+             {% if veiculo_id %}data-selected="{{ veiculo_id }}"{% endif %}
+             data-placeholder="Todos"></div></div>
+      <div class="form-group" style="margin:0;"><label>Status</label>
+        <select name="status" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          {% for s in ['pendente','pago','recurso','cancelada'] %}<option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s.title() }}</option>{% endfor %}
+        </select></div>
+    </form>
+  </div>
+</div>
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if multas.items %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Data</th><th>Veículo</th><th>Motorista</th><th>Descrição</th><th>Pontos</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for m in multas.items %}
+          <tr>
+            <td style="font-size:13px;">{{ m.data_infracao.strftime('%d/%m/%Y') }}</td>
+            <td><a href="{{ url_for('veiculos.detalhe', id=m.veiculo_id) }}" style="font-weight:600;color:var(--laranja);text-decoration:none;font-family:var(--mono);">{{ m.veiculo.placa }}</a></td>
+            <td style="font-size:13px;">{{ m.motorista.nome if m.motorista else '—' }}</td>
+            <td style="font-size:13px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.descricao or '—' }}</td>
+            <td style="text-align:center;font-size:13px;color:{% if m.pontos and m.pontos>=5 %}var(--vermelho){% else %}var(--grafite){% endif %};">{{ m.pontos or 0 }}</td>
+            <td style="font-weight:500;">R$ {{ '{:,.2f}'.format(m.valor_efetivo).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+            <td style="font-size:13px;color:{% if m.data_vencimento and m.data_vencimento < hoje and m.status=='pendente' %}var(--vermelho){% else %}var(--grafite){% endif %};">
+              {{ m.data_vencimento.strftime('%d/%m/%Y') if m.data_vencimento else '—' }}
+            </td>
+            <td>
+              {% if m.status == 'pendente' %}<span class="badge badge-laranja">Pendente</span>
+              {% elif m.status == 'pago' %}<span class="badge badge-verde">Pago</span>
+              {% elif m.status == 'recurso' %}<span class="badge badge-azul">Recurso</span>
+              {% else %}<span class="badge badge-cinza">{{ m.status }}</span>{% endif %}
+            </td>
+            <td style="display:flex;gap:6px;">
+              <a href="{{ url_for('multas.editar', id=m.id) }}" class="btn btn-secondary btn-sm btn-icon">✎</a>
+              {% if m.status == 'pendente' %}
+              <form method="POST" action="{{ url_for('multas.pagar', id=m.id) }}" onsubmit="return confirm('Confirmar pagamento?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary btn-sm">Quitar</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if multas.pages > 1 %}
+    <div class="pagination">
+      {% for p in multas.iter_pages() %}
+        {% if p %}<a href="?page={{ p }}&status={{ status }}&veiculo_id={{ veiculo_id }}" class="page-btn {% if p == multas.page %}active{% endif %}">{{ p }}</a>
+        {% else %}<span style="padding:0 4px;color:var(--cinza-300);">…</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}<div class="empty-state"><div class="empty-state-icon">◱</div>Nenhuma multa registrada.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosFiltroMultas: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ v.placa | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

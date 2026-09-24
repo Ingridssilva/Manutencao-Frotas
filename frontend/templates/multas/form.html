@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if m else 'Nova' }} Multa{% endblock %}
+{% block page_title %}{{ 'Editar multa' if m else 'Registrar Multa' }}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px;">
+  <div class="card-header"><span class="card-title">Dados da multa</span></div>
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group"><label>Veículo *</label>
+          <div class="ss-wrap" data-catalog="veiculosMultas" data-hidden-name="veiculo_id" data-required="true"
+               {% if m and m.veiculo_id %}data-selected="{{ m.veiculo_id }}"{% endif %}
+               data-placeholder="Buscar por placa..."></div></div>
+        <div class="form-group"><label>Motorista</label>
+          <div class="ss-wrap" data-catalog="motoristasMultas" data-hidden-name="motorista_id"
+               {% if m_obj and m_obj.motorista_id %}data-selected="{{ m_obj.motorista_id }}"{% endif %}
+               data-placeholder="Buscar motorista..."></div></div>
+        <div class="form-group"><label>Nº Auto de infração</label><input type="text" name="auto_infracao"></div>
+        <div class="form-group"><label>Data da infração *</label><input type="date" name="data_infracao" required></div>
+        <div class="form-group"><label>Município</label><input type="text" name="municipio"></div>
+        <div class="form-group"><label>Pontos</label><input type="number" name="pontos" value="0" min="0"></div>
+        <div class="form-group"><label>Valor original (R$) *</label><input type="number" name="valor_original" step="0.01" required></div>
+        <div class="form-group"><label>Desconto p/ pagamento antecipado</label><input type="number" name="valor_desconto" step="0.01"></div>
+        <div class="form-group"><label>Vencimento</label><input type="date" name="data_vencimento"></div>
+        <div class="form-group"><label>Responsável</label>
+          <select name="responsavel">
+            <option value="empresa">Empresa</option>
+            <option value="motorista">Motorista</option>
+          </select></div>
+        <div class="form-group full"><label>Local da infração</label><input type="text" name="local_infracao"></div>
+        <div class="form-group full"><label>Descrição</label><textarea name="descricao" rows="2"></textarea></div>
+        <div class="form-group full"><label>Observações</label><textarea name="observacoes" rows="2"></textarea></div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+        <a href="{{ url_for('multas.lista') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Registrar multa</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosMultas: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  motoristasMultas: [
+    {% for mo in motoristas %}
+    {id:"{{ mo.id }}", nome:{{ mo.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}
