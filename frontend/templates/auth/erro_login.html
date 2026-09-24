@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Erro de Login</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,sans-serif;background:#111114;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{background:#1C1C1E;border:1px solid #2C2C2E;border-radius:20px;max-width:420px;width:100%;padding:48px 40px;text-align:center;}
+h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:8px;}
+p{font-size:14px;color:#AEAEB2;line-height:1.6;margin-bottom:6px;}
+.err{background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.3);color:#FF6B63;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:20px;text-align:left;}
+.btn{display:inline-block;margin-top:24px;background:#F7931E;color:#fff;padding:12px 28px;border-radius:10px;font-weight:600;text-decoration:none;font-size:14px;}
+</style></head><body><div class="card">
+  <div style="font-size:40px;margin-bottom:16px;">⚠️</div>
+  <h1>Erro ao fazer login</h1>
+  {% if erro %}<div class="err">{{ erro }}</div>{% endif %}
+  <p>Ocorreu um erro durante a autenticação com Microsoft.</p>
+  <a href="{{ url_for('auth.azure_login') }}" class="btn">Tentar novamente</a>
+</div></body></html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Frota Empresa Exemplo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: #111114;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-box {
+  background: #1C1C1E;
+  border: 1px solid #2C2C2E;
+  border-radius: 20px;
+  padding: 48px 44px;
+  width: 100%;
+  max-width: 400px;
+}
+.brand-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #F7931E;
+  margin-bottom: 6px;
+}
+.brand-name {
+  font-size: 26px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: -.03em;
+  margin-bottom: 32px;
+}
+.brand-name em { font-style: normal; color: #F7931E; }
+.form-group { margin-bottom: 16px; }
+label { display: block; font-size: 12px; font-weight: 500; color: #AEAEB2; margin-bottom: 6px; }
+input {
+  width: 100%;
+  padding: 11px 14px;
+  background: #2C2C2E;
+  border: 1px solid #3A3A3C;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color: #FFFFFF;
+  outline: none;
+  transition: border .15s;
+}
+input:focus { border-color: #F7931E; box-shadow: 0 0 0 3px rgba(247,147,30,.15); }
+input::placeholder { color: #636366; }
+.btn-login {
+  width: 100%;
+  padding: 12px;
+  background: #F7931E;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background .15s;
+}
+.btn-login:hover { background: #d97b12; }
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: #48484A;
+  font-size: 12px;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid #2C2C2E;
+}
+.btn-azure {
+  width: 100%;
+  padding: 11px;
+  background: transparent;
+  border: 1px solid #3A3A3C;
+  border-radius: 10px;
+  color: #AEAEB2;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  cursor: pointer;
+  transition: all .15s;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.btn-azure:hover { background: #2C2C2E; color: #fff; border-color: #636366; }
+.flash-list { list-style: none; margin-bottom: 16px; }
+.flash-danger {
+  background: rgba(255,69,58,.12);
+  border: 1px solid rgba(255,69,58,.3);
+  color: #FF6B63;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+</style>
+</head>
+<body>
+<div class="login-box">
+  <div class="brand-tag">Sistema de Frota</div>
+  <div class="brand-name">Empresa <em>Exemplo</em></div>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <ul class="flash-list">
+        {% for cat, msg in msgs %}
+          <li class="flash-{{ cat }}">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+      <label>E-mail</label>
+      <input type="email" name="email" placeholder="seu@empresaexemplo.com.br" required autofocus>
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" name="senha" placeholder="••••••••" required>
+    </div>
+    <button type="submit" class="btn-login">Entrar</button>
+  </form>
+
+  <div class="divider">ou</div>
+
+  <a href="{{ url_for('auth.azure_login') }}" class="btn-azure">
+    <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
+      <rect x="1" y="1" width="9" height="9" fill="#F35325"/>
+      <rect x="11" y="1" width="9" height="9" fill="#81BC06"/>
+      <rect x="1" y="11" width="9" height="9" fill="#05A6F0"/>
+      <rect x="11" y="11" width="9" height="9" fill="#FFBA08"/>
+    </svg>
+    Entrar com Microsoft (Azure AD)
+  </a>
+</div>
+</body>
+</html>
