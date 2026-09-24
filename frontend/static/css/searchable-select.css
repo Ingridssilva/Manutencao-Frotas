@@ -1,0 +1,52 @@
+/* ===== SEARCHABLE SELECT (componente global) =====
+   Usado em qualquer <select> do sistema que tenha uma lista de opções
+   vinda de cadastro (veículos, motoristas, fornecedores, serviços,
+   materiais, implementos, categorias, usuários, etc).
+   Ver frontend/static/js/searchable-select.js */
+
+.ss-wrap{position:relative;width:100%}
+.ss-input-row{display:flex;align-items:center;gap:0;background:var(--bg-input,var(--bg-elevated));border:1px solid var(--border-default);border-radius:var(--radius-sm);overflow:hidden;transition:border-color .15s}
+.ss-input-row:focus-within{border-color:var(--laranja,#f7931e)}
+.ss-wrap.ss-invalid .ss-input-row{border-color:var(--vermelho,#f05)}
+.ss-wrap.ss-disabled .ss-input-row{opacity:.6;pointer-events:none}
+.ss-icon{padding:0 8px;color:var(--text-tertiary);font-size:13px;flex-shrink:0;user-select:none}
+.ss-input{flex:1;border:none;background:transparent;color:var(--text-primary);font-size:13px;padding:8px 4px;outline:none;min-width:0}
+.ss-input::placeholder{color:var(--text-tertiary)}
+.ss-clear{padding:0 8px;cursor:pointer;color:var(--text-tertiary);font-size:15px;line-height:1;background:none;border:none;display:none}
+.ss-clear.visible{display:block}
+.ss-clear:hover{color:var(--vermelho,#f05)}
+.ss-error-msg{display:none;font-size:11px;color:var(--vermelho,#f05);margin-top:4px}
+.ss-wrap.ss-invalid .ss-error-msg{display:block}
+
+.ss-dropdown{
+  position:fixed;
+  background:var(--bg-elevated, #1e2130);
+  border:1px solid var(--border-default);
+  border-radius:var(--radius-sm);
+  box-shadow:0 8px 32px rgba(0,0,0,.45);
+  z-index:99999;
+  max-height:260px;overflow-y:auto;
+  display:none;
+  min-width:260px;
+}
+.ss-dropdown.open{display:block}
+.ss-opt{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;font-size:13px;cursor:pointer;
+  color:var(--text-primary);
+  border-bottom:1px solid var(--border-subtle);
+  white-space:normal;line-height:1.3;
+  gap:8px;
+}
+.ss-opt:last-child{border-bottom:none}
+.ss-opt:hover,.ss-opt.focused{
+  background:#3b5bdb;
+  color:#fff;
+}
+.ss-opt:hover .ss-press,.ss-opt.focused .ss-press{display:inline}
+.ss-opt.selected{background:rgba(247,147,30,.15);font-weight:600}
+.ss-opt em{font-style:normal;font-weight:700;text-decoration:underline;}
+.ss-opt:hover em,.ss-opt.focused em{color:#fff}
+.ss-press{display:none;font-size:10px;color:rgba(255,255,255,.75);white-space:nowrap;flex-shrink:0}
+.ss-empty{padding:10px 12px;font-size:12px;color:var(--text-tertiary);text-align:center}
+.ss-badge{font-size:10px;color:var(--text-tertiary);margin-left:6px;font-weight:400}

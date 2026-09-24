@@ -1,0 +1,233 @@
+/*
+ * mobile.css — Empresa Exemplo — Frota
+ * Melhorias responsivas mobile-first
+ * Adicionar no base.html após main.css:
+ * <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+ */
+
+/* ── TOUCH TARGETS ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .btn { min-height: 44px; padding: 10px 16px; font-size: 15px; }
+  .btn-sm { min-height: 38px; padding: 8px 14px; font-size: 14px; }
+  input, select, textarea {
+    min-height: 44px;
+    font-size: 16px !important; /* evita zoom no iOS */
+  }
+  td, th { padding: 12px 10px; font-size: 13px; }
+  .badge { padding: 5px 12px; font-size: 12px; }
+}
+
+/* ── SIDEBAR MOBILE ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 280px !important;
+    z-index: 200;
+    box-shadow: 4px 0 24px rgba(0,0,0,.3);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(2px);
+    z-index: 199;
+    transition: opacity .25s;
+  }
+  .sidebar-overlay.open { display: block; }
+
+  .main { margin-left: 0 !important; }
+
+  .topbar { padding: 0 14px; gap: 10px; }
+
+  .search-wrap { max-width: none; flex: 1; }
+
+  .btn-menu {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--grafite);
+    font-size: 22px;
+    flex-shrink: 0;
+    padding: 0;
+    border-radius: var(--radius);
+    transition: var(--transition);
+  }
+  .btn-menu:hover { background: var(--cinza-50); }
+
+  .topbar-title { font-size: 14px; }
+
+  .content { padding: 14px; }
+
+  .topbar-actions .btn-secondary { display: none; }
+  .topbar-actions .btn-primary   { display: inline-flex; }
+}
+
+.btn-menu { display: none; }
+
+/* ── GRID RESPONSIVO ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+  .form-grid { grid-template-columns: 1fr !important; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .kanban-wrap { flex-direction: column; overflow-x: hidden; }
+  .kanban-col  { flex: none; width: 100%; min-width: 0; max-width: none; }
+}
+
+/* ── TABELAS MOBILE ─────────────────────────────────────── */
+@media (max-width: 600px) {
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 500px; }
+  .col-hide-mobile { display: none; }
+}
+
+/* ─ UPLOAD DE FOTOS ─────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--cinza-300);
+  border-radius: var(--radius-lg);
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--cinza-25);
+  position: relative;
+}
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--laranja);
+  background: var(--laranja-soft);
+}
+.upload-zone input[type=file] {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer;
+  width: 100%; height: 100%; min-height: unset;
+}
+.upload-zone-icon { font-size: 42px; margin-bottom: 10px; opacity: 0.6; }
+.upload-zone-text { font-size: 14px; color: var(--cinza-600); font-weight: 500; }
+.upload-zone-hint { font-size: 12px; color: var(--cinza-400); margin-top: 6px; }
+
+.fotos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+@media (max-width: 480px) {
+  .fotos-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.foto-card {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--cinza-100);
+  aspect-ratio: 1;
+  border: 1px solid var(--cinza-100);
+  transition: var(--transition);
+}
+.foto-card:hover { transform: scale(1.02); }
+.foto-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.foto-card-doc {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; gap: 6px; padding: 12px;
+}
+.foto-card-doc-icon { font-size: 32px; opacity: 0.5; }
+.foto-card-doc-nome {
+  font-size: 11px; text-align: center;
+  color: var(--cinza-500); word-break: break-all;
+  line-height: 1.3;
+}
+
+.foto-card-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,.75));
+  padding: 10px 8px 8px;
+  opacity: 0; transition: var(--transition);
+  display: flex; align-items: flex-end; justify-content: space-between;
+}
+.foto-card:hover .foto-card-overlay { opacity: 1; }
+@media (max-width: 768px) { .foto-card-overlay { opacity: 1; } }
+
+.foto-card-overlay a,
+.foto-card-overlay button {
+  color: #fff; font-size: 16px;
+  border: none; background: none;
+  cursor: pointer; padding: 4px; line-height: 1;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+.foto-card-overlay a:hover,
+.foto-card-overlay button:hover { background: rgba(255,255,255,0.2); }
+
+.foto-upload-progress {
+  height: 4px; background: var(--cinza-100);
+  border-radius: 2px; overflow: hidden; margin-top: 8px;
+}
+.foto-upload-progress-bar {
+  height: 4px; background: var(--laranja);
+  border-radius: 2px; width: 0%;
+  transition: width .3s ease;
+}
+
+/* ── BOTÃO EXPORTAR EXCEL ───────────────────────────────── */
+.btn-excel {
+  background: #217346;
+  color: #fff;
+  border-color: #217346;
+}
+.btn-excel:hover { background: #1a5c38; border-color: #1a5c38; }
+
+/* ─ FAB (Floating Action Button) mobile ───────────────── */
+@media (max-width: 768px) {
+  .fab {
+    position: fixed;
+    bottom: 24px; right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--laranja), var(--laranja-hover));
+    color: #fff; font-size: 28px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(247,147,30,.45);
+    text-decoration: none;
+    z-index: 100;
+    border: none; cursor: pointer;
+    transition: var(--transition);
+  }
+  .fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(247,147,30,.55); }
+  .fab:active { transform: scale(0.95); }
+  .fab-hide-desktop { display: flex; }
+}
+@media (min-width: 769px) { .fab { display: none; } }
+
+/* ── KANBAN MOBILE ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .kanban-wrap {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .kanban-col {
+    min-width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* ── FORM MOBILE ────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .form-group { margin-bottom: 14px; }
+  label { font-size: 13px; }
+  .card-body { padding: 16px; }
+  .card-header { padding: 14px 16px; }
+}

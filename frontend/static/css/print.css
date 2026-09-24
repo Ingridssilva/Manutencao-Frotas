@@ -1,0 +1,138 @@
+/* ============================================================
+   EMPRESA EXEMPLO — Sistema de Frota
+   print.css — estilos para impressão
+   ============================================================ */
+
+@media print {
+  /* Oculta navegação e interativos */
+  .sidebar,
+  .topbar,
+  .topbar-actions,
+  .btn,
+  .btn-sm,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-success,
+  .btn-warning,
+  .btn-ghost,
+  .flash-list,
+  .search-wrap,
+  .pagination,
+  .card-footer,
+  form,
+  .fab,
+  .btn-menu,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Layout limpo */
+  body {
+    background: #fff !important;
+    font-family: 'Inter', Arial, sans-serif;
+    color: #1C1C1E !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+  .main { margin-left: 0 !important; }
+  .content { padding: 0 !important; }
+
+  /* Cabeçalho de impressão */
+  .print-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 2.5px solid #F7931E;
+  }
+  .print-brand {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1C1C1E;
+    letter-spacing: -0.02em;
+  }
+  .print-brand span { color: #F7931E; }
+  .print-date { font-size: 10pt; color: #636366; }
+  .print-title {
+    font-size: 16pt;
+    font-weight: 700;
+    color: #1C1C1E;
+    margin-bottom: 4px;
+  }
+  .print-subtitle { font-size: 10pt; color: #636366; }
+
+  /* Cards limpos */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+    margin-bottom: 16px;
+    border-radius: 8px !important;
+  }
+  .card-header {
+    padding: 10px 16px !important;
+    background: #f5f5f5 !important;
+    border-bottom: 1px solid #ddd !important;
+  }
+  .card-title { font-size: 11pt !important; }
+  .card-body { padding: 14px 16px !important; }
+
+  /* Tabelas compactas */
+  table { font-size: 9pt !important; }
+  th, td { padding: 5px 10px !important; }
+  thead { background: #f0f0f0 !important; }
+  th { font-size: 8pt !important; }
+  .table-wrap { overflow: visible !important; }
+
+  /* Badges simples */
+  .badge {
+    border: 1px solid #ccc !important;
+    background: none !important;
+    color: #333 !important;
+    font-size: 9pt;
+    padding: 2px 8px;
+  }
+  .badge-dot::before { display: none; }
+
+  /* Métricas */
+  .metrics-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+  }
+  .metric-card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    padding: 12px !important;
+  }
+  .metric-value { font-size: 22pt !important; }
+  .metric-label { font-size: 8pt !important; }
+
+  /* Grid */
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+
+  /* Timeline */
+  .timeline::before { background: #ddd !important; }
+  .timeline-dot { box-shadow: none !important; }
+
+  /* Quebras de página */
+  .page-break { page-break-before: always; }
+  .no-break { break-inside: avoid; }
+
+  /* Configuração da página */
+  @page {
+    margin: 15mm 12mm;
+    size: A4;
+  }
+  @page :first { margin-top: 10mm; }
+
+  /* Links */
+  a[href]::after {
+    content: none !important;
+  }
+}
+
+/* Classe para mostrar somente na impressão */
+.print-only { display: none; }
+@media print { .print-only { display: block !important; } }
