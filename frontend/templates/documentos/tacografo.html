@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Tacógrafo — {{ v.placa }}{% endblock %}
+{% block page_title %}Tacógrafo — {{ v.placa }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary btn-sm">← Voltar</a>{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Registrar calibração</span></div>
+    <div class="card-body">
+      <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="form-group"><label>Nº de série</label><input type="text" name="numero_serie" value="{{ doc.numero_serie if doc else '' }}"></div>
+          <div class="form-group"><label>Marca</label><input type="text" name="marca" value="{{ doc.marca if doc else '' }}"></div>
+          <div class="form-group"><label>Modelo</label><input type="text" name="modelo" value="{{ doc.modelo if doc else '' }}"></div>
+          <div class="form-group"><label>Data instalação</label><input type="date" name="data_instalacao"></div>
+          <div class="form-group"><label>Última calibração</label><input type="date" name="data_ultima_calibracao" value="{{ doc.data_ultima_calibracao.strftime('%Y-%m-%d') if doc and doc.data_ultima_calibracao else '' }}"></div>
+          <div class="form-group"><label>Próxima calibração *</label><input type="date" name="data_proxima_calibracao" required></div>
+          <div class="form-group"><label>Empresa calibradora</label><input type="text" name="empresa_calibradora"></div>
+          <div class="form-group"><label>Status</label>
+            <select name="status">
+              {% for s in ['regular','vencido','pendente','sem_tacografo'] %}
+              <option value="{{ s }}" {% if doc and doc.status==s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="form-group full"><label>Link certificado</label><input type="url" name="link_certificado" placeholder="https://..."></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+          <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Salvar tacógrafo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="card" style="align-self:start;">
+    <div class="card-header"><span class="card-title">Histórico de calibrações</span></div>
+    <div class="card-body" style="padding:0;">
+      {% if historico %}
+      {% for t in historico %}
+      <div style="padding:12px 22px;border-bottom:1px solid var(--cinza-50);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-weight:600;">Próxima: {{ t.data_proxima_calibracao.strftime('%d/%m/%Y') }}</div>
+          {% set d = (t.data_proxima_calibracao - hoje).days %}
+          {% if d < 0 %}<span class="badge badge-vermelho">Vencida</span>
+          {% elif d < 30 %}<span class="badge badge-laranja">{{ d }}d</span>
+          {% else %}<span class="badge badge-verde">{{ d }}d</span>{% endif %}
+        </div>
+        <div style="font-size:12px;color:var(--cinza-500);">{{ t.empresa_calibradora or '—' }} {% if t.data_ultima_calibracao %}| Última: {{ t.data_ultima_calibracao.strftime('%d/%m/%Y') }}{% endif %}</div>
+        {% if t.link_certificado %}<a href="{{ t.link_certificado }}" target="_blank" style="font-size:12px;color:var(--azul);">Certificado ↗</a>{% endif %}
+      </div>
+      {% endfor %}
+      {% else %}<div class="empty-state" style="padding:20px;">Sem histórico.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

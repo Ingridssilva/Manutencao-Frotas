@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Seguro — {{ v.placa }}{% endblock %}
+{% block page_title %}Seguro — {{ v.placa }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary btn-sm">← Voltar</a>{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><span class="card-title">{{ 'Renovar' if doc else 'Cadastrar' }} seguro</span></div>
+    <div class="card-body">
+      <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="form-group full"><label>Seguradora (fornecedor)</label>
+            <div class="ss-wrap" data-catalog="fornecedoresSeguro" data-hidden-name="fornecedor_id"
+                 {% if doc and doc.fornecedor_id %}data-selected="{{ doc.fornecedor_id }}"{% endif %}
+                 data-placeholder="Buscar seguradora..."></div></div>
+          <div class="form-group"><label>Nº apólice</label><input type="text" name="numero_apolice" value="{{ doc.numero_apolice if doc else '' }}"></div>
+          <div class="form-group"><label>Tipo de cobertura</label><input type="text" name="tipo_cobertura" value="{{ doc.tipo_cobertura if doc else '' }}"></div>
+          <div class="form-group"><label>Data início *</label><input type="date" name="data_inicio" value="{{ doc.data_inicio.strftime('%Y-%m-%d') if doc and doc.data_inicio else '' }}" required></div>
+          <div class="form-group"><label>Data vencimento *</label><input type="date" name="data_vencimento" value="{{ doc.data_vencimento.strftime('%Y-%m-%d') if doc and doc.data_vencimento else '' }}" required></div>
+          <div class="form-group"><label>Prêmio (R$)</label><input type="number" name="valor_premio" step="0.01" value="{{ doc.valor_premio if doc else '' }}"></div>
+          <div class="form-group"><label>Franquia (R$)</label><input type="number" name="franquia" step="0.01" value="{{ doc.franquia if doc else '' }}"></div>
+          <div class="form-group full"><label>Link apólice</label><input type="url" name="link_apolice" value="{{ doc.link_apolice if doc else '' }}" placeholder="https://..."></div>
+          <div class="form-group full"><label>Observações</label><textarea name="observacoes" rows="2">{{ doc.observacoes if doc else '' }}</textarea></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+          <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">{{ 'Renovar seguro' if doc else 'Cadastrar seguro' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="card" style="align-self:start;">
+    <div class="card-header"><span class="card-title">Histórico de apólices</span></div>
+    <div class="card-body" style="padding:0;">
+      {% if historico %}
+      {% for s in historico %}
+      <div style="padding:12px 22px;border-bottom:1px solid var(--cinza-50);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:600;">{{ s.numero_apolice or 'Sem nº' }}</div>
+            <div style="font-size:12px;color:var(--cinza-500);">{{ s.data_inicio.strftime('%d/%m/%Y') if s.data_inicio else '' }} → {{ s.data_vencimento.strftime('%d/%m/%Y') if s.data_vencimento else '' }}</div>
+          </div>
+          {% if s.status == 'ativo' %}<span class="badge badge-verde">Ativo</span>
+          {% elif s.status == 'vencido' %}<span class="badge badge-vermelho">Vencido</span>
+          {% elif s.status == 'encerrado' %}<span class="badge badge-cinza">Encerrado</span>
+          {% else %}<span class="badge badge-cinza">{{ s.status }}</span>{% endif %}
+        </div>
+        {% if s.valor_premio %}<div style="font-size:12px;color:var(--cinza-500);margin-top:2px;">Prêmio: R$ {{ '{:,.2f}'.format(s.valor_premio|float).replace(',','X').replace('.', ',').replace('X','.') }}</div>{% endif %}
+        {% if s.link_apolice %}<a href="{{ s.link_apolice }}" target="_blank" style="font-size:12px;color:var(--azul);">Apólice ↗</a>{% endif %}
+      </div>
+      {% endfor %}
+      {% else %}<div class="empty-state" style="padding:20px;">Sem histórico.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  fornecedoresSeguro: [
+    {% for f in fornecedores %}
+    {id:"{{ f.id }}", nome:{{ f.razao_social | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

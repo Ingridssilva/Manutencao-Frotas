@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}CRLV — {{ v.placa }}{% endblock %}
+{% block page_title %}CRLV — {{ v.placa }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary btn-sm">← Voltar ao veículo</a>
+{% endblock %}
+{% block content %}
+<div style="max-width:640px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Dados do CRLV — {{ v.placa }}</span></div>
+    <div class="card-body">
+      <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="form-group"><label>Exercício (ano) *</label>
+            <input type="number" name="exercicio" value="{{ doc.exercicio if doc else hoje.year }}" required min="2020" max="2035"></div>
+          <div class="form-group"><label>Data de vencimento *</label>
+            <input type="date" name="data_vencimento" value="{{ doc.data_vencimento.strftime('%Y-%m-%d') if doc and doc.data_vencimento else '' }}" required></div>
+          <div class="form-group"><label>Emplacamento</label>
+            <input type="text" name="emplacamento" value="{{ doc.emplacamento if doc else '' }}"></div>
+          <div class="form-group"><label>Proprietário</label>
+            <input type="text" name="proprietario" value="{{ doc.proprietario if doc else '' }}"></div>
+          <div class="form-group"><label>Status</label>
+            <select name="status">
+              {% for s in ['regular','vencido','pendente'] %}
+              <option value="{{ s }}" {% if doc and doc.status==s %}selected{% endif %}>{{ s.title() }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="form-group full"><label>Link do documento (SharePoint / OneDrive)</label>
+            <input type="url" name="link_documento" value="{{ doc.link_documento if doc else '' }}" placeholder="https://..."></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+          <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">{{ 'Atualizar CRLV' if doc else 'Cadastrar CRLV' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% if doc %}
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header"><span class="card-title">Situação atual</span></div>
+    <div class="card-body">
+      {% set dias = (doc.data_vencimento - hoje).days %}
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="font-size:36px;color:{% if dias<0 %}var(--vermelho){% elif dias<30 %}var(--laranja){% else %}var(--verde){% endif %};">
+          {% if dias < 0 %}✕{% elif dias < 30 %}⚠{% else %}✓{% endif %}
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:15px;">{{ doc.data_vencimento.strftime('%d/%m/%Y') }}</div>
+          <div style="font-size:13px;color:var(--cinza-500);">
+            {% if dias < 0 %}Vencido há {{ dias|abs }} dias
+            {% elif dias < 30 %}Vence em {{ dias }} dias — atenção!
+            {% else %}Vence em {{ dias }} dias{% endif %}
+          </div>
+          {% if doc.link_documento %}<a href="{{ doc.link_documento }}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:8px;">Abrir documento ↗</a>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Contrato — {{ v.placa }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Novo Contrato</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('veiculos.lista') }}">Veículos</a> /
+      <a href="{{ url_for('veiculos.detalhe', id=v.id) }}">{{ v.placa }}</a> /
+      Contrato
+    </div>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px;">
+  <div class="card-header"><span class="card-title">Dados do Contrato</span></div>
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label>Tipo de contrato *</label>
+          <select name="tipo_contrato" required>
+            <option value="">Selecione...</option>
+            <option value="locacao"                 {% if c and c.tipo_contrato=='locacao' %}selected{% endif %}>Locação</option>
+            <option value="manutencao_terceirizada" {% if c and c.tipo_contrato=='manutencao_terceirizada' %}selected{% endif %}>Manutenção terceirizada</option>
+            <option value="seguro"                  {% if c and c.tipo_contrato=='seguro' %}selected{% endif %}>Seguro</option>
+            <option value="outro"                   {% if c and c.tipo_contrato=='outro' %}selected{% endif %}>Outro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Fornecedor</label>
+          <div class="ss-wrap" data-catalog="fornecedoresContrato" data-hidden-name="fornecedor_id"
+               {% if c and c.fornecedor_id %}data-selected="{{ c.fornecedor_id }}"{% endif %}
+               data-placeholder="Buscar fornecedor..."></div>
+        </div>
+
+        <div class="form-group">
+          <label>Nº do contrato</label>
+          <input type="text" name="numero_contrato" value="{{ c.numero_contrato if c else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status">
+            <option value="ativo"     {% if not c or c.status=='ativo' %}selected{% endif %}>Ativo</option>
+            <option value="encerrado" {% if c and c.status=='encerrado' %}selected{% endif %}>Encerrado</option>
+            <option value="suspenso"  {% if c and c.status=='suspenso' %}selected{% endif %}>Suspenso</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Data início *</label>
+          <input type="date" name="data_inicio" value="{{ c.data_inicio.strftime('%Y-%m-%d') if c and c.data_inicio else '' }}" required>
+        </div>
+
+        <div class="form-group">
+          <label>Data fim</label>
+          <input type="date" name="data_fim" value="{{ c.data_fim.strftime('%Y-%m-%d') if c and c.data_fim else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Valor mensal (R$)</label>
+          <input type="number" name="valor_mensal" step="0.01" min="0" value="{{ c.valor_mensal if c and c.valor_mensal else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Valor total (R$)</label>
+          <input type="number" name="valor_total" step="0.01" min="0" value="{{ c.valor_total if c and c.valor_total else '' }}">
+        </div>
+
+        <div class="form-group full">
+          <label>Link do contrato (SharePoint / OneDrive)</label>
+          <input type="url" name="link_contrato" placeholder="https://empresaexemplo.sharepoint.com/..." value="{{ c.link_contrato if c and c.link_contrato else '' }}">
+        </div>
+
+        <div class="form-group full">
+          <label>Descrição</label>
+          <textarea name="descricao" rows="2">{{ c.descricao if c else '' }}</textarea>
+        </div>
+
+        <div class="form-group full">
+          <label>Observações</label>
+          <textarea name="observacoes" rows="2">{{ c.observacoes if c else '' }}</textarea>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Salvar contrato</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  fornecedoresContrato: [
+    {% for f in fornecedores %}
+    {id:"{{ f.id }}", nome:{{ f.razao_social | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}
