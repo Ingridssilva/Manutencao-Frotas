@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if p else 'Novo' }} Plano de Manutenção{% endblock %}
+{% block page_title %}{{ 'Editar' if p else 'Novo' }} Plano de Manutenção{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('manutencao.lista') }}" class="btn btn-secondary btn-sm">← Lista</a>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:720px;">
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group"><label>Veículo *</label>
+          <div class="ss-wrap" data-catalog="veiculosPlano" data-hidden-name="veiculo_id" data-required="true"
+               {% if p and p.veiculo_id %}data-selected="{{ p.veiculo_id }}"{% elif veiculo_sel %}data-selected="{{ veiculo_sel.id }}"{% endif %}
+               data-placeholder="Buscar por placa..."></div></div>
+        <div class="form-group"><label>Serviço *</label>
+          <div class="ss-wrap" data-catalog="servicosPlano" data-hidden-name="servico_id" data-required="true"
+               {% if p and p.servico_id %}data-selected="{{ p.servico_id }}"{% endif %}
+               data-placeholder="Buscar serviço..."></div></div>
+        <div class="form-group"><label>Tipo *</label>
+          <select name="tipo" required>
+            <option value="preventiva" {% if not p or p.tipo=='preventiva' %}selected{% endif %}>Preventiva</option>
+            <option value="preditiva" {% if p and p.tipo=='preditiva' %}selected{% endif %}>Preditiva</option>
+          </select></div>
+        <div class="form-group"><label>Gatilho *</label>
+          <select name="gatilho_tipo" required>
+            <option value="km" {% if not p or p.gatilho_tipo=='km' %}selected{% endif %}>Por KM</option>
+            <option value="dias" {% if p and p.gatilho_tipo=='dias' %}selected{% endif %}>Por Data</option>
+            <option value="ambos" {% if p and p.gatilho_tipo=='ambos' %}selected{% endif %}>KM e Data</option>
+          </select></div>
+        <div class="form-group"><label>Intervalo KM</label><input type="number" name="intervalo_km" value="{{ p.intervalo_km if p else '' }}" placeholder="ex: 10000"></div>
+        <div class="form-group"><label>Intervalo (dias)</label><input type="number" name="intervalo_dias" value="{{ p.intervalo_dias if p else '' }}" placeholder="ex: 180"></div>
+        <div class="form-group"><label>KM da última execução</label><input type="number" name="km_referencia" value="{{ p.km_referencia if p else '' }}"></div>
+        <div class="form-group"><label>Data da última execução</label><input type="date" name="data_referencia" value="{{ p.data_referencia.isoformat() if p and p.data_referencia else '' }}"></div>
+        <div class="form-group"><label>Alertar X km antes</label><input type="number" name="alerta_km_antes" value="{{ p.alerta_km_antes if p else 500 }}"></div>
+        <div class="form-group"><label>Alertar X dias antes</label><input type="number" name="alerta_dias_antes" value="{{ p.alerta_dias_antes if p else 15 }}"></div>
+        <div class="form-group full"><label>Observações</label><textarea name="observacoes" rows="2">{{ p.observacoes if p else '' }}</textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('manutencao.lista') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{{ 'Atualizar' if p else 'Criar plano' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosPlano: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  servicosPlano: [
+    {% for s in servicos %}
+    {id:"{{ s.id }}", nome:{{ s.nome | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Planos de Manutenção{% endblock %}
+{% block page_title %}Planos de Manutenção{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('manutencao.novo') }}" class="btn btn-primary btn-sm">+ Novo Plano</a>{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="min-width:180px;margin:0;"><label>Veículo</label>
+        <div class="ss-wrap" data-catalog="veiculosFiltroPlano" data-hidden-name="veiculo_id" data-submit="true"
+             {% if veiculo_id %}data-selected="{{ veiculo_id }}"{% endif %}
+             data-placeholder="Todos"></div></div>
+      <div class="form-group" style="margin:0;"><label>Tipo</label>
+        <select name="tipo" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          <option value="preventiva" {% if tipo=='preventiva' %}selected{% endif %}>Preventiva</option>
+          <option value="preditiva" {% if tipo=='preditiva' %}selected{% endif %}>Preditiva</option>
+        </select></div>
+    </form>
+  </div>
+</div>
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if planos.items %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Veículo</th><th>Serviço</th><th>Tipo</th><th>Gatilho</th><th>Próx. KM</th><th>Próx. Data</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for p in planos.items %}
+          {% set dias = (p.proxima_data - hoje).days if p.proxima_data else 9999 %}
+          {% set km_rest = (p.proximo_km - p.veiculo.km_atual) if p.proximo_km else 9999 %}
+          <tr>
+            <td><a href="{{ url_for('veiculos.detalhe', id=p.veiculo_id) }}" style="font-weight:600;color:var(--laranja);text-decoration:none;font-family:var(--mono);">{{ p.veiculo.placa }}</a></td>
+            <td style="font-size:13px;">{{ p.servico.nome }}</td>
+            <td><span class="badge {% if p.tipo=='preventiva' %}badge-azul{% else %}badge-laranja{% endif %}">{{ p.tipo }}</span></td>
+            <td class="text-small mono">{{ p.gatilho_tipo.upper() }}</td>
+            <td style="font-size:13px;color:{% if km_rest<=0 %}var(--vermelho){% elif km_rest<=p.alerta_km_antes %}var(--laranja){% else %}var(--grafite){% endif %};">
+              {% if p.proximo_km %}{{ '{:,}'.format(p.proximo_km).replace(',','.') }} km{% else %}—{% endif %}
+            </td>
+            <td style="font-size:13px;color:{% if dias<=0 %}var(--vermelho){% elif dias<=p.alerta_dias_antes %}var(--laranja){% else %}var(--grafite){% endif %};">
+              {{ p.proxima_data.strftime('%d/%m/%Y') if p.proxima_data else '—' }}
+              {% if p.proxima_data and 0 < dias <= p.alerta_dias_antes %}<span style="font-size:11px;">({{ dias }}d)</span>{% endif %}
+            </td>
+            <td>
+              {% if km_rest<=0 or dias<=0 %}<span class="badge badge-vermelho">Vencido</span>
+              {% elif km_rest<=p.alerta_km_antes or dias<=p.alerta_dias_antes %}<span class="badge badge-laranja">Próximo</span>
+              {% else %}<span class="badge badge-verde">Ok</span>{% endif %}
+            </td>
+            <td style="display:flex;gap:6px;">
+              <a href="{{ url_for('manutencao.editar', id=p.id) }}" class="btn btn-secondary btn-sm btn-icon">✎</a>
+              <form method="POST" action="{{ url_for('manutencao.desativar', id=p.id) }}" onsubmit="return confirm('Desativar este plano?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm btn-icon">✕</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if planos.pages > 1 %}
+    <div class="pagination">
+      {% for p in planos.iter_pages() %}
+        {% if p %}<a href="?page={{ p }}&veiculo_id={{ veiculo_id }}&tipo={{ tipo }}" class="page-btn {% if p == planos.page %}active{% endif %}">{{ p }}</a>
+        {% else %}<span style="padding:0 4px;color:var(--cinza-300);">…</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}<div class="empty-state"><div class="empty-state-icon">◍</div>Nenhum plano de manutenção ativo.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosFiltroPlano: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ v.placa | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}
