@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Vencimentos{% endblock %}
+{% block page_title %}Vencimentos Próximos{% endblock %}
+{% block topbar_actions %}
+  <form method="GET" style="display:flex;gap:8px;align-items:center;">
+    <label style="font-size:13px;color:var(--cinza-500);">Próximos</label>
+    <select name="dias" onchange="this.form.submit()" style="width:100px;">
+      <option value="30" {% if dias==30 %}selected{% endif %}>30 dias</option>
+      <option value="60" {% if dias==60 %}selected{% endif %}>60 dias</option>
+      <option value="90" {% if dias==90 %}selected{% endif %}>90 dias</option>
+      <option value="180" {% if dias==180 %}selected{% endif %}>180 dias</option>
+    </select>
+  </form>
+{% endblock %}
+{% block content %}
+
+{% set criticos = rows | selectattr('data_vencimento') | list %}
+
+<div class="metrics-grid" style="margin-bottom:24px;">
+  {% set n_vencidos = [] %}
+  {% set n_criticos = [] %}
+  {% set n_atencao = [] %}
+  {% for r in rows %}
+    {% if r.data_vencimento %}
+      {% set d = (r.data_vencimento - hoje).days %}
+      {% if d < 0 %}{% set _ = n_vencidos.append(1) %}
+      {% elif d < 30 %}{% set _ = n_criticos.append(1) %}
+      {% else %}{% set _ = n_atencao.append(1) %}{% endif %}
+    {% endif %}
+  {% endfor %}
+  <div class="metric-card"><div class="metric-label">Vencidos</div><div class="metric-value vermelho">{{ n_vencidos|length }}</div></div>
+  <div class="metric-card"><div class="metric-label">Críticos (30 dias)</div><div class="metric-value laranja">{{ n_criticos|length }}</div></div>
+  <div class="metric-card"><div class="metric-label">Atenção</div><div class="metric-value">{{ n_atencao|length }}</div></div>
+  <div class="metric-card"><div class="metric-label">Total monitorado</div><div class="metric-value">{{ rows|length }}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Veículo</th><th>Descrição</th><th>Documento</th><th>Vencimento</th><th>Dias restantes</th><th>Status doc.</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          {% if r.data_vencimento %}
+          {% set dias_r = (r.data_vencimento - hoje).days %}
+          <tr>
+            <td><a href="{{ url_for('veiculos.detalhe', id=r.veiculo_id) }}" style="font-weight:600;color:var(--laranja);text-decoration:none;font-family:var(--mono);">{{ r.placa }}</a></td>
+            <td style="font-size:13px;color:var(--cinza-500);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.descricao or '—' }}</td>
+            <td><span class="badge badge-azul">{{ r.tipo_doc }}</span></td>
+            <td style="font-size:13px;font-weight:500;color:{% if dias_r<0 %}var(--vermelho){% elif dias_r<30 %}var(--laranja){% else %}var(--grafite){% endif %};">
+              {{ r.data_vencimento.strftime('%d/%m/%Y') }}
+            </td>
+            <td style="font-weight:600;color:{% if dias_r<0 %}var(--vermelho){% elif dias_r<30 %}var(--vermelho){% elif dias_r<60 %}var(--laranja){% else %}var(--verde){% endif %};">
+              {% if dias_r < 0 %}Vencido há {{ dias_r|abs }}d{% else %}{{ dias_r }} dias{% endif %}
+            </td>
+            <td>
+              {% if r.status == 'regular' or r.status == 'ativo' or r.status == 'aprovado' %}<span class="badge badge-verde">{{ r.status }}</span>
+              {% elif r.status == 'vencido' %}<span class="badge badge-vermelho">Vencido</span>
+              {% elif r.status == 'pendente' %}<span class="badge badge-laranja">Pendente</span>
+              {% else %}<span class="badge badge-cinza">{{ r.status or '—' }}</span>{% endif %}
+            </td>
+            <td><a href="{{ url_for('veiculos.detalhe', id=r.veiculo_id) }}" class="btn btn-secondary btn-sm">Ver veículo</a></td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state"><div class="empty-state-icon">✓</div>Nenhum vencimento nos próximos {{ dias }} dias.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

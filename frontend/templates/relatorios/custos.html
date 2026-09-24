@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Custos{% endblock %}
+{% block page_title %}Custos por Veículo{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('relatorios.custos_excel') }}?ano={{ ano }}&mes={{ mes }}&tipo={{ tipo }}" class="btn btn-secondary btn-sm">⬇ Excel</a>
+{% endblock %}
+{% block content %}
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="margin:0;min-width:100px;">
+        <label>Ano</label>
+        <select name="ano" onchange="this.form.submit()">
+          {% for a in anos %}<option value="{{ a }}" {% if a==ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:120px;">
+        <label>Mês</label>
+        <select name="mes" onchange="this.form.submit()">
+          <option value="0" {% if mes==0 %}selected{% endif %}>Todos</option>
+          {% for nm,i in [('Janeiro',1),('Fevereiro',2),('Março',3),('Abril',4),('Maio',5),('Junho',6),('Julho',7),('Agosto',8),('Setembro',9),('Outubro',10),('Novembro',11),('Dezembro',12)] %}
+          <option value="{{ i }}" {% if mes==i %}selected{% endif %}>{{ nm }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Tipo manutenção</label>
+        <select name="tipo" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          <option value="preventiva" {% if tipo=='preventiva' %}selected{% endif %}>Preventiva</option>
+          <option value="preditiva" {% if tipo=='preditiva' %}selected{% endif %}>Preditiva</option>
+          <option value="corretiva" {% if tipo=='corretiva' %}selected{% endif %}>Corretiva</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-secondary">Filtrar</button>
+    </form>
+  </div>
+</div>
+
+<!-- Total -->
+{% if total > 0 %}
+<div class="metrics-grid" style="margin-bottom:20px;">
+  <div class="metric-card">
+    <div class="metric-label">Total no período</div>
+    <div class="metric-value laranja" style="font-size:24px;">R$ {{ '{:,.2f}'.format(total).replace(',','X').replace('.', ',').replace('X','.') }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Veículos com custo</div>
+    <div class="metric-value">{{ rows|selectattr('custo_total')|list|length }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Total de OS</div>
+    <div class="metric-value">{{ rows|sum(attribute='qtd_os') }}</div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Veículo</th><th>Município</th><th>Tipo prop.</th><th>Tipo manut.</th><th>Qtd OS</th><th>Custo total</th></tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          {% if r.custo_total and r.custo_total|float > 0 %}
+          <tr>
+            <td>
+              <a href="{{ url_for('relatorios.custos_veiculo') }}?veiculo_id={{ r.veiculo_id }}&ano={{ ano }}" style="font-weight:600;color:var(--laranja);text-decoration:none;font-family:var(--mono);">{{ r.placa }}</a>
+              <div style="font-size:11px;color:var(--cinza-500);">{{ r.descricao or '' }}</div>
+            </td>
+            <td style="font-size:13px;color:var(--cinza-500);">{{ r.municipio_base or '—' }}</td>
+            <td>{% if r.tipo_propriedade == 'locado' %}<span class="badge badge-azul">Locado</span>{% else %}<span class="badge badge-cinza">Próprio</span>{% endif %}</td>
+            <td>
+              {% if r.tipo_manutencao == 'corretiva' %}<span class="badge badge-vermelho">Corretiva</span>
+              {% elif r.tipo_manutencao == 'preventiva' %}<span class="badge badge-verde">Preventiva</span>
+              {% elif r.tipo_manutencao == 'preditiva' %}<span class="badge badge-azul">Preditiva</span>
+              {% else %}<span class="badge badge-cinza">—</span>{% endif %}
+            </td>
+            <td style="font-size:13px;text-align:center;">{{ r.qtd_os or 0 }}</td>
+            <td style="font-weight:700;font-size:14px;">R$ {{ '{:,.2f}'.format(r.custo_total|float).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+        {% if total > 0 %}
+        <tfoot>
+          <tr style="background:var(--cinza-50);">
+            <td colspan="5" style="font-weight:600;padding:12px 16px;">Total geral</td>
+            <td style="font-weight:700;font-size:15px;padding:12px 16px;">R$ {{ '{:,.2f}'.format(total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state"><div class="empty-state-icon">◵</div>Nenhum dado de custo para o período selecionado.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}BI & Análises{% endblock %}
+{% block page_title %}BI & Análises{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+
+<div class="metrics-grid" style="margin-bottom:24px;">
+  <div class="metric-card"><div class="metric-label">Custo total (mês)</div><div class="metric-value laranja" id="m-custo">—</div></div>
+  <div class="metric-card"><div class="metric-label">Disponibilidade média</div><div class="metric-value verde" id="m-disp">—</div><div class="metric-sub">mês atual</div></div>
+  <div class="metric-card"><div class="metric-label">UPE perdido (mês)</div><div class="metric-value laranja" id="m-upe">—</div></div>
+  <div class="metric-card"><div class="metric-label">OS concluídas (mês)</div><div class="metric-value" id="m-os">—</div></div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Custo mensal (R$) — últimos 12 meses</span></div>
+    <div class="card-body"><canvas id="chartCusto" height="260"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Disponibilidade média mensal (%)</span></div>
+    <div class="card-body"><canvas id="chartDisp" height="260"></canvas></div>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Top veículos por custo — mês atual</span></div>
+    <div class="card-body"><canvas id="chartTop" height="260"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Custo por tipo de manutenção — mês atual</span></div>
+    <div class="card-body"><canvas id="chartTipo" height="260"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Disponibilidade por veículo — mês atual</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table id="tblDisp">
+        <thead><tr><th>Veículo</th><th>Município</th><th>Dias disponível</th><th>Dias indisp.</th><th>% Disponibilidade</th><th>UPE perdido</th></tr></thead>
+        <tbody><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--cinza-400);">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const R = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const P = v => Number(v||0).toFixed(1)+'%';
+const mesAtual = new Date().toISOString().slice(0,7);
+
+function labelMes(isoStr) {
+  if (!isoStr) return '?';
+  const d = new Date(isoStr.slice(0,10)+'T12:00:00');
+  return d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'});
+}
+
+async function init() {
+  const [custos, disp, stats] = await Promise.all([
+    fetch('/api/bi-custos').then(r=>r.json()).catch(()=>[]),
+    fetch('/api/disponibilidade-mes').then(r=>r.json()).catch(()=>[]),
+    fetch('/api/stats').then(r=>r.json()).catch(()=>({})),
+  ]);
+
+  // --- MÉTRICAS ---
+  const custoMes = custos.filter(r=>r.mes&&r.mes.startsWith(mesAtual)).reduce((a,r)=>a+Number(r.custo_total||0),0);
+  document.getElementById('m-custo').textContent = R(custoMes);
+
+  const dispMes = disp.filter(r=>r.mes&&r.mes.startsWith(mesAtual));
+  const dispMedia = dispMes.length ? dispMes.reduce((a,r)=>a+Number(r.pct_disponibilidade||0),0)/dispMes.length : 0;
+  document.getElementById('m-disp').textContent = P(dispMedia);
+
+  const upeMes = dispMes.reduce((a,r)=>a+Number(r.upe_total_perdido||0),0);
+  document.getElementById('m-upe').textContent = Number(upeMes).toFixed(3);
+  document.getElementById('m-os').textContent = stats.os_abertas ?? '—';
+
+  // --- GRÁFICO CUSTO MENSAL ---
+  const meses12 = [...new Set(custos.map(r=>r.mes&&r.mes.slice(0,7)).filter(Boolean))].sort().slice(-12);
+  const custoPorMes = meses12.map(m => custos.filter(r=>r.mes&&r.mes.startsWith(m)).reduce((a,r)=>a+Number(r.custo_total||0),0));
+
+  new Chart(document.getElementById('chartCusto'), {
+    type:'bar',
+    data:{labels:meses12.map(labelMes), datasets:[{label:'Custo total', data:custoPorMes, backgroundColor:'#F7931E', borderRadius:5}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:v=>R(v)}}, x:{grid:{display:false}}}}
+  });
+
+  // --- GRÁFICO DISPONIBILIDADE ---
+  const mesesD = [...new Set(disp.map(r=>r.mes&&r.mes.slice(0,7)).filter(Boolean))].sort().slice(-12);
+  const dispMedia12 = mesesD.map(m => {
+    const rows = disp.filter(r=>r.mes&&r.mes.startsWith(m));
+    return rows.length ? rows.reduce((a,r)=>a+Number(r.pct_disponibilidade||0),0)/rows.length : 0;
+  });
+
+  new Chart(document.getElementById('chartDisp'), {
+    type:'line',
+    data:{labels:mesesD.map(labelMes), datasets:[{label:'Disponibilidade %', data:dispMedia12, borderColor:'#30D158', backgroundColor:'rgba(48,209,88,.1)', fill:true, tension:.3, pointRadius:3}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}}
+  });
+
+  // --- TOP VEÍCULOS ---
+  const topMap = {};
+  custos.filter(r=>r.mes&&r.mes.startsWith(mesAtual)).forEach(r=>{
+    topMap[r.placa] = (topMap[r.placa]||0)+Number(r.custo_total||0);
+  });
+  const top8 = Object.entries(topMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  new Chart(document.getElementById('chartTop'), {
+    type:'bar',
+    data:{labels:top8.map(r=>r[0]), datasets:[{label:'Custo', data:top8.map(r=>r[1]), backgroundColor:'#F7931E', borderRadius:5}]},
+    options:{indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>R(v)}}}}
+  });
+
+  // --- CUSTO POR TIPO ---
+  const tipoMap = {preventiva:0, preditiva:0, corretiva:0};
+  custos.filter(r=>r.mes&&r.mes.startsWith(mesAtual)).forEach(r=>{
+    if(r.tipo_manutencao && tipoMap[r.tipo_manutencao] !== undefined)
+      tipoMap[r.tipo_manutencao] += Number(r.custo_total||0);
+  });
+
+  new Chart(document.getElementById('chartTipo'), {
+    type:'doughnut',
+    data:{
+      labels:['Preventiva','Preditiva','Corretiva'],
+      datasets:[{data:[tipoMap.preventiva,tipoMap.preditiva,tipoMap.corretiva], backgroundColor:['#0A84FF','#F7931E','#FF453A'], borderWidth:0}]
+    },
+    options:{responsive:true, plugins:{legend:{position:'bottom'}}}
+  });
+
+  // --- TABELA DISPONIBILIDADE ---
+  const tbody = document.querySelector('#tblDisp tbody');
+  const dispMesRows = disp.filter(r=>r.mes&&r.mes.startsWith(mesAtual)).sort((a,b)=>Number(b.pct_disponibilidade||0)-Number(a.pct_disponibilidade||0));
+  if (dispMesRows.length) {
+    tbody.innerHTML = dispMesRows.map(r=>`
+      <tr>
+        <td style="font-weight:600;font-family:var(--mono);color:var(--laranja);">${r.placa}</td>
+        <td style="font-size:13px;color:var(--cinza-500);">${r.municipio_base||'—'}</td>
+        <td style="font-size:13px;text-align:center;">${r.dias_disponivel}</td>
+        <td style="font-size:13px;text-align:center;color:var(--vermelho);">${r.dias_indisponivel}</td>
+        <td style="font-weight:600;text-align:center;color:${Number(r.pct_disponibilidade)>=90?'var(--verde)':Number(r.pct_disponibilidade)>=70?'var(--laranja)':'var(--vermelho)'};">${P(r.pct_disponibilidade)}</td>
+        <td style="font-size:13px;text-align:center;">${Number(r.upe_total_perdido||0).toFixed(3)}</td>
+      </tr>`).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Sem dados de disponibilidade para o mês atual.</td></tr>';
+  }
+}
+
+init();
+</script>
+{% endblock %}

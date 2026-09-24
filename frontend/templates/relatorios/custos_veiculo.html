@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% block title %}Custo por Veículo{% endblock %}
+{% block page_title %}Custo por Veículo{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('relatorios.custos_veiculo_excel') }}?veiculo_id={{ veiculo.id }}&ano={{ ano }}" class="btn btn-secondary btn-sm">⬇ Excel</a>
+  <a href="{{ url_for('relatorios.custos') }}" class="btn btn-secondary btn-sm">← Voltar</a>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- CABEÇALHO DO VEÍCULO -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-body" style="padding:20px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+    <div style="width:56px;height:56px;background:var(--laranja-soft);border:1px solid var(--laranja-border);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">🚛</div>
+    <div style="flex:1;">
+      <div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--laranja);letter-spacing:.04em;">{{ veiculo.placa }}</div>
+      <div style="font-size:14px;color:var(--text-secondary);margin-top:2px;">{{ veiculo.descricao or veiculo.modelo or '' }} · {{ veiculo.municipio_base or '' }}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:4px;">Custo total {{ ano }}</div>
+      <div style="font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--laranja);">
+        R$ {{ '{:,.2f}'.format(custo_ano).replace(',','X').replace('.', ',').replace('X','.') }}
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:4px;">Total de OS</div>
+      <div style="font-family:var(--font-display);font-size:28px;font-weight:700;">{{ total_os }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- FILTRO ANO -->
+<div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+  {% for a in anos %}
+  <a href="?veiculo_id={{ veiculo.id }}&ano={{ a }}"
+     class="btn {% if a == ano %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">{{ a }}</a>
+  {% endfor %}
+</div>
+
+<!-- MÉTRICAS -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;margin-bottom:24px;">
+  <div class="metric-card">
+    <div class="metric-label">Preventiva</div>
+    <div class="metric-value verde">{{ qtd_prev }}</div>
+    <div class="metric-sub">R$ {{ '{:,.0f}'.format(custo_prev).replace(',','.') }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Corretiva</div>
+    <div class="metric-value vermelho">{{ qtd_corr }}</div>
+    <div class="metric-sub">R$ {{ '{:,.0f}'.format(custo_corr).replace(',','.') }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Preditiva</div>
+    <div class="metric-value azul">{{ qtd_pred }}</div>
+    <div class="metric-sub">R$ {{ '{:,.0f}'.format(custo_pred).replace(',','.') }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Média/OS</div>
+    <div class="metric-value" style="font-size:22px;color:var(--laranja);">
+      R$ {{ '{:,.0f}'.format(custo_ano / total_os if total_os else 0).replace(',','.') }}
+    </div>
+  </div>
+</div>
+
+<!-- GRÁFICO MENSAL -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><span class="card-title">📈 Evolução de custo mensal — {{ ano }}</span></div>
+  <div class="card-body">
+    <div style="position:relative;height:240px;">
+      <canvas id="chartMensal"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- HISTÓRICO DE OS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📋 OS no período</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if os_list %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Número</th><th>Tipo</th><th>Abertura</th><th>Status</th><th>Custo</th><th></th></tr></thead>
+          <tbody>
+            {% for o in os_list %}
+            <tr>
+              <td class="mono" style="font-size:13px;font-weight:600;">{{ o.numero }}</td>
+              <td><span class="badge {% if o.tipo_manutencao == 'corretiva' %}badge-vermelho{% elif o.tipo_manutencao == 'preventiva' %}badge-verde{% else %}badge-laranja{% endif %}">{{ o.tipo_manutencao }}</span></td>
+              <td style="font-size:13px;">{{ o.data_abertura.strftime('%d/%m/%Y') }}</td>
+              <td>
+                {% if o.status == 'concluida' %}<span class="badge badge-verde">✓</span>
+                {% elif o.status == 'aberta' %}<span class="badge badge-laranja">Aberta</span>
+                {% elif o.status == 'em_execucao' %}<span class="badge badge-azul">Exec.</span>
+                {% else %}<span class="badge badge-cinza">{{ o.status }}</span>{% endif %}
+              </td>
+              <td class="mono" style="font-size:13px;font-weight:600;color:{% if o.custo_total and o.custo_total > 5000 %}var(--vermelho){% else %}var(--text-primary){% endif %};">
+                {% if o.custo_total %}R$ {{ '{:,.2f}'.format(o.custo_total).replace(',','X').replace('.', ',').replace('X','.') }}{% else %}—{% endif %}
+              </td>
+              <td><a href="{{ url_for('os.detalhe', id=o.id) }}" class="btn btn-secondary btn-sm btn-icon">→</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state"><p>Nenhuma OS no período.</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- CUSTO POR TIPO (donut) -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">🎯 Distribuição por tipo</span></div>
+    <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+      <div style="position:relative;width:180px;height:180px;">
+        <canvas id="chartTipo"></canvas>
+      </div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--verde);"></div>
+          <span style="font-size:13px;color:var(--text-secondary);">Preventiva</span>
+          <span style="font-size:13px;font-weight:700;margin-left:auto;color:var(--verde);">R$ {{ '{:,.0f}'.format(custo_prev).replace(',','.') }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--vermelho);"></div>
+          <span style="font-size:13px;color:var(--text-secondary);">Corretiva</span>
+          <span style="font-size:13px;font-weight:700;margin-left:auto;color:var(--vermelho);">R$ {{ '{:,.0f}'.format(custo_corr).replace(',','.') }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--azul);"></div>
+          <span style="font-size:13px;color:var(--text-secondary);">Preditiva</span>
+          <span style="font-size:13px;font-weight:700;margin-left:auto;color:var(--azul);">R$ {{ '{:,.0f}'.format(custo_pred).replace(',','.') }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+Chart.defaults.color = 'rgba(238,238,243,0.7)';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+
+const meses = {{ meses_labels | tojson }};
+const custos= {{ meses_custos | tojson }};
+const qtds  = {{ meses_qtds   | tojson }};
+
+new Chart(document.getElementById('chartMensal'), {
+  data: {
+    labels: meses,
+    datasets: [
+      {
+        type: 'bar', label: 'Qtd OS', data: qtds,
+        backgroundColor: 'rgba(77,158,255,0.25)', borderColor: 'rgba(77,158,255,0.8)',
+        borderWidth: 1, borderRadius: 4, yAxisID: 'y',
+      },
+      {
+        type: 'line', label: 'Custo (R$)', data: custos,
+        borderColor: '#F7931E', backgroundColor: 'rgba(247,147,30,0.10)',
+        borderWidth: 2, pointBackgroundColor: '#F7931E', pointRadius: 4,
+        tension: 0.4, fill: true, yAxisID: 'y2',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { boxWidth: 12, padding: 14 } } },
+    scales: {
+      y:  { position: 'left',  grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 1 } },
+      y2: { position: 'right', grid: { display: false }, ticks: {
+        callback: v => 'R$' + v.toLocaleString('pt-BR')
+      }},
+    }
+  }
+});
+
+new Chart(document.getElementById('chartTipo'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Preventiva','Corretiva','Preditiva'],
+    datasets: [{
+      data: [{{ custo_prev }}, {{ custo_corr }}, {{ custo_pred }}],
+      backgroundColor: ['rgba(0,208,132,0.8)','rgba(255,69,69,0.8)','rgba(77,158,255,0.8)'],
+      borderWidth: 0, hoverOffset: 6,
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false } } }
+});
+</script>
+{% endblock %}
