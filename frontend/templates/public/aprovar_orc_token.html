@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autorização Orçamento {{ o.numero }} — Empresa Exemplo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#F2F2F7;min-height:100vh;padding:32px 16px;}
+.card{background:#fff;border-radius:16px;max-width:620px;margin:0 auto;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08);}
+.header{background:#F7931E;padding:24px 32px;}
+.header h1{font-size:20px;font-weight:700;color:#fff;}
+.header p{font-size:13px;color:rgba(255,255,255,.85);margin-top:4px;}
+.body{padding:24px 32px;}
+.field{padding:10px 0;border-bottom:1px solid #F2F2F7;}
+.field:last-child{border:none;}
+.field-label{font-size:11px;font-weight:600;color:#636366;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.field-value{font-size:15px;color:#1C1C1E;}
+.custo{font-size:36px;font-weight:700;color:#F7931E;font-family:monospace;margin-top:4px;}
+.itens-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
+.itens-table th{text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:#636366;text-transform:uppercase;border-bottom:2px solid #F2F2F7;}
+.itens-table td{padding:7px 8px;border-bottom:1px solid #F9F9F9;color:#1C1C1E;}
+.itens-table tr:last-child td{border:none;}
+.itens-table .val{text-align:right;}
+.total-row td{font-weight:700;font-size:14px;border-top:2px solid #E5E5EA !important;padding-top:10px !important;}
+.total-val{color:#F7931E;font-size:16px;}
+.section-title{font-size:12px;font-weight:600;color:#F7931E;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px;padding-top:4px;border-top:1px solid #F2F2F7;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:12px;font-weight:600;color:#636366;margin-bottom:6px;}
+.form-group input,.form-group textarea{width:100%;padding:10px 14px;border:1px solid #D1D1D6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:border .15s;}
+.form-group input:focus,.form-group textarea:focus{border-color:#F7931E;box-shadow:0 0 0 3px rgba(247,147,30,.12);}
+.form-group textarea{resize:vertical;min-height:80px;}
+.btn-row{display:flex;gap:12px;margin-top:20px;}
+.btn{flex:1;padding:13px 20px;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;transition:opacity .15s;text-align:center;}
+.btn:hover{opacity:.88;}
+.btn-aprovar{background:#30D158;color:#fff;}
+.btn-rejeitar{background:#FF453A;color:#fff;}
+.alert-err{background:#FFF1F0;border:1px solid #FFD7D5;color:#c0241a;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+.footer{padding:16px 32px;border-top:1px solid #F2F2F7;font-size:12px;color:#8E8E93;text-align:center;}
+.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;}
+.badge-azul{background:rgba(0,122,255,.12);color:#0066CC;}
+.badge-verde{background:rgba(48,209,88,.12);color:#1A7A34;}
+.badge-laranja{background:rgba(247,147,30,.15);color:#B35C00;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h1>🔔 Autorização — ORC {{ o.numero }}</h1>
+    <p>
+      {% set custo = o.valor_total_estimado|float %}
+      {% if custo >= 1000 %}Diretoria — acima de R$ 1.000
+      {% else %}Gestor de Frotas — abaixo de R$ 1.000{% endif %}
+    </p>
+  </div>
+  <div class="body">
+
+    {% if erro %}
+    <div class="alert-err">{{ erro }}</div>
+    {% endif %}
+
+    <!-- Dados do Orçamento -->
+    <div class="field">
+      <div class="field-label">Veículo</div>
+      <div class="field-value">
+        <strong>{{ o.veiculo.placa if o.veiculo else '—' }}</strong>
+        {% if o.veiculo %} — {{ o.veiculo.descricao or o.veiculo.modelo or '' }}{% endif %}
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Tipo OS</div>
+      <div class="field-value">{{ (o.tipo_os or '').capitalize() }}</div>
+    </div>
+    {% if o.fornecedor %}
+    <div class="field">
+      <div class="field-label">Fornecedor</div>
+      <div class="field-value">{{ o.fornecedor.razao_social }}</div>
+    </div>
+    {% endif %}
+    <div class="field">
+      <div class="field-label">Descrição</div>
+      <div class="field-value" style="font-size:14px;color:#48484A;">{{ o.descricao }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Solicitado por</div>
+      <div class="field-value">{{ o.solicitante.nome if o.solicitante else '—' }}
+        {% if o.data_solicitacao %} em {{ o.data_solicitacao.strftime('%d/%m/%Y') }}{% endif %}
+      </div>
+    </div>
+
+    <!-- Itens -->
+    {% if o.itens %}
+    <div class="section-title">Itens do Orçamento</div>
+    <table class="itens-table">
+      <thead><tr><th>Tipo</th><th>Descrição</th><th class="val">Qtd</th><th class="val">Unit.</th><th class="val">Total</th></tr></thead>
+      <tbody>
+        {% for i in o.itens %}
+        <tr>
+          <td>
+            <span class="badge {% if i.tipo_item == 'servico' %}badge-azul{% elif i.tipo_item == 'implemento' %}badge-laranja{% else %}badge-verde{% endif %}">
+              {{ i.tipo_item.capitalize() }}
+            </span>
+          </td>
+          <td>{{ (i.servico.nome if i.servico else None) or (i.material.nome if i.material else None) or i.descricao_livre or '—' }}</td>
+          <td class="val">{{ i.quantidade }}</td>
+          <td class="val">R$ {{ '{:,.2f}'.format(i.valor_unitario|float).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+          <td class="val">R$ {{ '{:,.2f}'.format(i.valor_total).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="4" style="text-align:right;">VALOR ESTIMADO TOTAL</td>
+          <td class="val total-val">R$ {{ '{:,.2f}'.format(o.valor_total_estimado|float).replace(',','X').replace('.', ',').replace('X','.') }}</td>
+        </tr>
+      </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Custo destaque -->
+    <div style="text-align:center;padding:20px 0 8px;">
+      <div style="font-size:12px;font-weight:600;color:#636366;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Valor Estimado Total</div>
+      <div class="custo">R$ {{ '{:,.2f}'.format(o.valor_total_estimado|float).replace(',','X').replace('.', ',').replace('X','.') }}</div>
+    </div>
+
+    <!-- Formulário de decisão -->
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group" style="margin-top:20px;">
+        <label>Seu nome (para registro)</label>
+        <input type="text" name="nome_aprovador" placeholder="Ex: Fulano de Tal" required>
+      </div>
+      <div class="form-group">
+        <label>Observações (obrigatório para rejeição)</label>
+        <textarea name="obs" placeholder="Comentários, justificativa..."></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" name="acao" value="aprovar" class="btn btn-aprovar"
+                onclick="return confirm('Confirmar APROVAÇÃO do orçamento {{ o.numero }}?')">
+          ✓ Aprovar Orçamento
+        </button>
+        <button type="submit" name="acao" value="rejeitar" class="btn btn-rejeitar"
+                onclick="return confirm('Confirmar REJEIÇÃO do orçamento {{ o.numero }}?')">
+          ✕ Rejeitar Orçamento
+        </button>
+      </div>
+    </form>
+  </div>
+  <div class="footer">
+    Sistema de Frota — Empresa Exemplo · seu-app.onrender.com
+  </div>
+</div>
+</body>
+</html>

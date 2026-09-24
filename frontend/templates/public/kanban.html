@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Frota — Empresa Exemplo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --o:#F7931E;--og:rgba(247,147,30,0.28);--os:rgba(247,147,30,0.08);--ob:rgba(247,147,30,0.32);
+  --bg:#060709;--bs:#0A0C10;--bc:#0F1117;--be:#141820;
+  --bd:rgba(255,255,255,0.07);
+  --tp:#EEEEF8;--ts:#6868A0;--td:#3A3A58;
+  --G:#00E88A;--R:#FF3A3A;--Y:#FFB800;--B:#3D8EFF;--P:#8B5CF6;
+  --fn:'Inter',system-ui,sans-serif;
+  --fd:'Rajdhani',system-ui,sans-serif;
+  --mo:'JetBrains Mono',monospace;
+  --ease:cubic-bezier(0.23,1,0.32,1);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--fn);background:var(--bg);color:var(--tp);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;
+  background-image:linear-gradient(rgba(247,147,30,0.022) 1px,transparent 1px),linear-gradient(90deg,rgba(247,147,30,0.022) 1px,transparent 1px);
+  background-size:52px 52px;}
+body::before{content:'';position:fixed;top:-20%;right:-8%;width:700px;height:700px;background:radial-gradient(circle,rgba(247,147,30,0.07) 0%,transparent 60%);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;bottom:-10%;left:-5%;width:500px;height:500px;background:radial-gradient(circle,rgba(61,142,255,0.05) 0%,transparent 60%);pointer-events:none;z-index:0}
+
+.topbar{height:58px;flex-shrink:0;background:rgba(10,12,16,0.92);backdrop-filter:blur(24px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 24px;justify-content:space-between;position:relative;z-index:100;}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--o),rgba(247,147,30,0.2),transparent 55%)}
+.brand{font-family:var(--fd);font-size:20px;font-weight:700;color:var(--tp);text-transform:uppercase;letter-spacing:.03em}
+.brand em{color:var(--o);font-style:normal}
+.topbar-center{display:flex;align-items:center;gap:6px}
+.screen-tabs{display:flex;gap:4px;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;border:1px solid var(--bd)}
+.screen-tab{padding:5px 14px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--ts);transition:all .18s;text-transform:uppercase;letter-spacing:.07em;font-family:var(--fd);display:flex;align-items:center;gap:5px;}
+.screen-tab.active{background:var(--o);color:#000;box-shadow:0 2px 14px rgba(247,147,30,0.35)}
+.screen-tab .tab-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.live-badge{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ts);background:rgba(255,255,255,0.04);padding:5px 11px;border-radius:20px;border:1px solid var(--bd);letter-spacing:.04em;font-family:var(--fd);text-transform:uppercase}
+.live-dot{width:7px;height:7px;background:var(--G);border-radius:50%;box-shadow:0 0 10px var(--G);animation:pulse 2.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--G)}50%{opacity:.4;box-shadow:0 0 18px var(--G)}}
+.progress-bar-wrap{position:absolute;bottom:0;left:0;right:0;height:2px;overflow:hidden}
+.progress-bar-fill{height:100%;background:var(--o);width:0%}
+.timer-chip{font-size:10px;color:var(--td);font-family:var(--mo);padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:7px;border:1px solid rgba(255,255,255,0.05)}
+.btn-reservar{display:flex;align-items:center;gap:6px;background:var(--os);color:var(--o);padding:6px 14px;border-radius:9px;font-size:11px;font-weight:700;border:1px solid var(--ob);text-decoration:none;transition:all .18s;text-transform:uppercase;letter-spacing:.06em;font-family:var(--fd)}
+.btn-reservar:hover{background:var(--o);color:#000}
+.btn-entrar{background:var(--o);color:#000;padding:6px 16px;border-radius:9px;font-size:11px;font-weight:700;text-decoration:none;transition:all .18s;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.06em;font-family:var(--fd)}
+.btn-entrar:hover{background:#FF9F2F;transform:translateY(-1px)}
+
+.screens-wrap{flex:1;overflow:hidden;position:relative;z-index:1}
+.screen{position:absolute;inset:0;opacity:0;transform:translateX(40px);transition:opacity .5s var(--ease),transform .5s var(--ease);pointer-events:none;overflow-y:auto;padding:20px 22px 28px;}
+.screen.active{opacity:1;transform:translateX(0);pointer-events:auto}
+.screen.exit{opacity:0;transform:translateX(-40px)}
+
+.page-eyebrow{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:var(--o);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.page-eyebrow::before{content:'';width:16px;height:1px;background:var(--o);opacity:.6}
+.page-title{font-family:var(--fd);font-size:22px;font-weight:700;color:var(--tp);text-transform:uppercase;letter-spacing:-.01em;line-height:1}
+.page-header{margin-bottom:16px}
+
+/* SUMMARY */
+.summary-bar{display:flex;gap:3px;margin-bottom:18px;background:var(--bs);border:1px solid var(--bd);border-radius:12px;padding:3px;overflow:hidden}
+.sum-item{flex:1;padding:10px 14px;border-radius:9px;display:flex;flex-direction:column;gap:2px}
+.sum-num{font-family:var(--fd);font-size:24px;font-weight:700;line-height:1}
+.sum-label{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--ts)}
+.sum-aberta .sum-num{color:var(--B)}.sum-execucao .sum-num{color:var(--o)}.sum-peca .sum-num{color:var(--P)}.sum-concluida .sum-num{color:var(--G)}
+.sum-divider{width:1px;background:var(--bd);margin:6px 0}
+
+/* KANBAN */
+.kanban-wrap{display:flex;gap:14px;height:calc(100vh - 202px);overflow-x:auto;align-items:stretch}
+.kanban-wrap::-webkit-scrollbar{height:4px}
+.kanban-wrap::-webkit-scrollbar-thumb{background:rgba(247,147,30,.22);border-radius:4px}
+.kanban-col{flex:0 0 310px;min-width:310px;background:var(--bc);border-radius:16px;border:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.kanban-col-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 11px;font-size:11px;font-weight:700;gap:8px;border-bottom:1px solid var(--bd);font-family:var(--fd);letter-spacing:.07em;text-transform:uppercase;flex-shrink:0}
+.col-aberta          .kanban-col-header{background:rgba(61,142,255,.06);border-top:2px solid var(--B)}
+.col-em_execucao     .kanban-col-header{background:rgba(247,147,30,.07);border-top:2px solid var(--o)}
+.col-aguardando_peca .kanban-col-header{background:rgba(139,92,246,.07);border-top:2px solid var(--P)}
+.col-concluida       .kanban-col-header{background:rgba(0,232,138,.06);border-top:2px solid var(--G)}
+.col-title{display:flex;align-items:center;gap:7px}
+.col-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.col-aberta          .col-dot{background:var(--B);box-shadow:0 0 10px rgba(61,142,255,.7)}
+.col-em_execucao     .col-dot{background:var(--o);box-shadow:0 0 10px rgba(247,147,30,.7)}
+.col-aguardando_peca .col-dot{background:var(--P);box-shadow:0 0 10px rgba(139,92,246,.7)}
+.col-concluida       .col-dot{background:var(--G);box-shadow:0 0 10px rgba(0,232,138,.7)}
+.col-count{font-size:10px;background:rgba(255,255,255,.07);padding:2px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.06);color:var(--ts)}
+.kanban-cards{padding:8px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;flex:1;min-height:0}
+.kanban-cards::-webkit-scrollbar{width:3px}
+.kanban-cards::-webkit-scrollbar-thumb{background:rgba(247,147,30,.18);border-radius:3px}
+
+/* OS CARD */
+.os-card{background:var(--be);border-radius:12px;border:1px solid rgba(255,255,255,.06);padding:13px 14px 11px;transition:all .2s;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:0}
+.os-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity .2s}
+.col-aberta          .os-card::before{background:linear-gradient(90deg,var(--B),transparent)}
+.col-em_execucao     .os-card::before{background:linear-gradient(90deg,var(--o),transparent)}
+.col-aguardando_peca .os-card::before{background:linear-gradient(90deg,var(--P),transparent)}
+.col-concluida       .os-card::before{background:linear-gradient(90deg,var(--G),transparent)}
+.os-card:hover{border-color:rgba(247,147,30,.22);transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.os-card:hover::before{opacity:1}
+.os-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.os-card-placa{font-family:var(--mo);font-size:16px;font-weight:600;color:var(--o);letter-spacing:.06em;line-height:1.1}
+.os-card-numero{font-size:9px;font-family:var(--mo);color:var(--td);margin-top:2px}
+.badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;flex-shrink:0}
+.badge-corretiva{background:rgba(255,58,58,.10);color:var(--R);border-color:rgba(255,58,58,.22)}
+.badge-preventiva{background:rgba(0,232,138,.10);color:var(--G);border-color:rgba(0,232,138,.22)}
+.badge-preditiva{background:rgba(61,142,255,.10);color:var(--B);border-color:rgba(61,142,255,.22)}
+.os-card-modelo{font-size:10.5px;color:var(--td);margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.os-card-dates{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.045);border-radius:8px;padding:7px 10px;margin-bottom:8px;display:flex;flex-direction:column;gap:5px}
+.date-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.date-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--td)}
+.date-value{font-family:var(--mo);font-size:10.5px;color:var(--ts)}
+.date-value.hot{color:var(--o);font-weight:500}
+.date-value.ok{color:var(--G);font-weight:500}
+.date-value.warn{color:var(--Y);font-weight:500}
+.tempo-badge{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:9px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;font-family:var(--fd)}
+.t-ok{background:rgba(0,232,138,.10);color:var(--G);border:1px solid rgba(0,232,138,.20)}
+.t-alerta{background:rgba(255,184,0,.10);color:var(--Y);border:1px solid rgba(255,184,0,.22)}
+.t-critico{background:rgba(255,58,58,.10);color:var(--R);border:1px solid rgba(255,58,58,.22)}
+.duracao-badge{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:9px;margin-bottom:8px;background:rgba(0,232,138,.07);color:var(--G);border:1px solid rgba(0,232,138,.18);font-family:var(--fd)}
+.os-card-condutor{display:flex;align-items:center;gap:7px;margin-bottom:8px;padding:5px 10px;background:rgba(247,147,30,.05);border-radius:8px;border:1px solid rgba(247,147,30,.12)}
+.condutor-nome{font-size:11px;font-weight:600;color:var(--o);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.os-card-info{font-size:11px;color:var(--ts);line-height:1.5;margin-bottom:0;padding:6px 9px;background:rgba(255,255,255,.02);border-radius:7px;border-left:2px solid rgba(255,255,255,.06)}
+.empty-col{text-align:center;padding:40px 12px;color:var(--td);font-size:11px;font-family:var(--fd);letter-spacing:.06em;text-transform:uppercase}
+.empty-col-icon{font-size:28px;margin-bottom:10px;opacity:.2}
+
+/* FROTA */
+.disp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-top:14px}
+.disp-card{background:var(--bc);border-radius:14px;border:1px solid var(--bd);padding:16px;position:relative;overflow:hidden;transition:all .2s}
+.disp-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.disp-card.disp-ok::before{background:var(--G)}.disp-card.disp-no::before{background:var(--R)}.disp-card.disp-res::before{background:var(--o)}
+.disp-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.10)}
+.disp-placa{font-family:var(--mo);font-size:17px;font-weight:600;color:var(--o);letter-spacing:.06em;margin-bottom:3px}
+.disp-modelo{font-size:11px;color:var(--td);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.disp-status-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;border:1px solid;text-transform:uppercase;letter-spacing:.05em;font-family:var(--fd)}
+.disp-ok  .disp-status-badge{background:rgba(0,232,138,.08);color:var(--G);border-color:rgba(0,232,138,.20)}
+.disp-no  .disp-status-badge{background:rgba(255,58,58,.08);color:var(--R);border-color:rgba(255,58,58,.20)}
+.disp-res .disp-status-badge{background:rgba(247,147,30,.08);color:var(--o);border-color:rgba(247,147,30,.20)}
+.disp-dot-s{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+.disp-municipio{font-size:10px;color:var(--td);margin-top:6px}
+.disp-loading{text-align:center;padding:60px;color:var(--td);font-size:12px;font-family:var(--fd);letter-spacing:.08em;text-transform:uppercase}
+
+/* INDICADORES */
+.ind-scroll{overflow-y:auto;height:calc(100vh - 100px);padding-right:4px}
+.ind-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px;margin-bottom:12px}
+.kpi-card{background:var(--bc);border:1px solid var(--bd);border-radius:14px;padding:18px 16px;position:relative;overflow:hidden;transition:all .2s}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity .3s}
+.kpi-card:hover::before{opacity:1}
+.kpi-card.orange::before{background:linear-gradient(90deg,var(--o),transparent)}
+.kpi-card.green::before{background:linear-gradient(90deg,var(--G),transparent)}
+.kpi-card.red::before{background:linear-gradient(90deg,var(--R),transparent)}
+.kpi-card.blue::before{background:linear-gradient(90deg,var(--B),transparent)}
+.kpi-icon{font-size:18px;margin-bottom:8px}
+.kpi-num{font-family:var(--fd);font-size:36px;font-weight:700;line-height:1;margin-bottom:4px}
+.kpi-num.sm{font-size:24px}
+.kpi-num.orange{color:var(--o)}.kpi-num.green{color:var(--G)}.kpi-num.red{color:var(--R)}.kpi-num.blue{color:var(--B)}
+.kpi-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--ts);font-family:var(--fd)}
+.kpi-sub{font-size:10.5px;color:var(--td);margin-top:3px}
+
+/* MTBF / MTTR */
+.mtx-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.mtx-card{background:var(--bc);border:1px solid var(--bd);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+.mtx-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.mtx-mtbf::before{background:linear-gradient(90deg,var(--B),transparent)}
+.mtx-mttr::before{background:linear-gradient(90deg,var(--P),transparent)}
+.mtx-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:var(--ts);font-family:var(--fd);margin-bottom:2px}
+.mtx-name{font-size:12px;font-weight:600;color:var(--tp);margin-bottom:10px}
+.mtx-num{font-family:var(--fd);font-size:48px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.mtx-mtbf .mtx-num{color:var(--B)}
+.mtx-mttr .mtx-num{color:var(--P)}
+.mtx-unit{font-size:14px;font-weight:400;opacity:.5}
+.mtx-desc{font-size:10px;color:var(--td);margin-top:6px;line-height:1.4}
+.mtx-na{font-family:var(--fd);font-size:20px;font-weight:700;color:var(--td)}
+
+/* bottom row */
+.ind-row2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:900px){.ind-row2{grid-template-columns:1fr 1fr}}
+.wide-card{background:var(--bc);border:1px solid var(--bd);border-radius:14px;padding:16px}
+.wide-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--ts);font-family:var(--fd);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
+.tipo-bars{display:flex;flex-direction:column;gap:7px}
+.tipo-bar-row{display:flex;align-items:center;gap:9px}
+.tipo-label{font-size:10.5px;color:var(--ts);min-width:72px;font-family:var(--fd);text-transform:capitalize}
+.tipo-bar-bg{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+.tipo-bar-fill{height:100%;border-radius:4px;transition:width .8s var(--ease)}
+.tipo-corretiva{background:var(--R)}.tipo-preventiva{background:var(--G)}.tipo-preditiva{background:var(--B)}
+.tipo-num{font-size:10.5px;font-weight:700;font-family:var(--mo);color:var(--tp);min-width:20px;text-align:right}
+.top-veic-list{display:flex;flex-direction:column;gap:7px}
+.top-veic-row{display:flex;align-items:center;gap:10px}
+.top-veic-rank{font-size:11px;font-weight:700;color:var(--td);font-family:var(--mo);min-width:18px}
+.top-veic-placa{font-family:var(--mo);font-size:13px;font-weight:500;color:var(--o);flex:1}
+.top-veic-bar-bg{width:80px;height:5px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+.top-veic-bar-fill{height:100%;background:var(--o);border-radius:4px;transition:width .8s var(--ease)}
+.top-veic-num{font-size:10.5px;font-weight:700;font-family:var(--mo);color:var(--ts);min-width:20px;text-align:right}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:100px}
+.gauge-big{font-family:var(--fd);font-size:52px;font-weight:700;line-height:1}
+.gauge-unit{font-size:18px;font-weight:400;opacity:.6}
+.gauge-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ts);margin-top:6px;font-family:var(--fd)}
+.gauge-bar-wrap{width:100%;height:5px;background:rgba(255,255,255,.07);border-radius:4px;margin-top:10px;overflow:hidden}
+.gauge-bar-fill{height:100%;border-radius:4px;transition:width .8s var(--ease)}
+.loading-overlay{display:flex;align-items:center;justify-content:center;height:200px;font-size:12px;color:var(--td);font-family:var(--fd);text-transform:uppercase;letter-spacing:.12em}
+
+.bottom-bar{height:38px;flex-shrink:0;background:rgba(10,12,16,.88);backdrop-filter:blur(16px);border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:10px;color:var(--td);font-family:var(--fd);letter-spacing:.08em;text-transform:uppercase;position:relative;z-index:100}
+.bottom-bar::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(247,147,30,.2),transparent)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:rgba(247,147,30,.22);border-radius:4px}
+
+/* ── MOBILE PORTRAIT FIX ──────────────────────────────────── */
+@media(max-width:520px){
+  .topbar{padding:0 12px;height:52px}
+  .brand{font-size:15px}
+  .timer-chip{display:none}
+  .live-badge{display:none}
+  .screen-tab{padding:5px 9px;font-size:10px;letter-spacing:.04em}
+  .btn-reservar{padding:7px 12px;font-size:11px;gap:4px;border-radius:8px}
+  .btn-entrar{padding:7px 12px;font-size:11px;gap:4px;border-radius:8px}
+  .topbar-center{gap:4px}
+  .topbar-right{gap:6px}
+}
+@media(max-width:400px){
+  .brand{display:none}
+  .screen-tab{padding:5px 8px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Empresa <em>Exemplo</em></div>
+  <div class="topbar-center">
+    <div class="screen-tabs">
+      <button class="screen-tab active" onclick="goScreen(0)"><span class="tab-dot"></span> OS</button>
+      <button class="screen-tab" onclick="goScreen(1)"><span class="tab-dot"></span> Frota</button>
+      <button class="screen-tab" onclick="goScreen(2)"><span class="tab-dot"></span> Indicadores</button>
+    </div>
+    <div class="timer-chip" id="timerChip">45s</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><div class="live-dot"></div> Ao vivo</div>
+    <a href="/reservar" class="btn-reservar">&#x1F697; Reservar</a>
+    <a href="{{ url_for('auth.azure_login') }}" class="btn-entrar">
+      <svg width="12" height="12" viewBox="0 0 21 21" fill="none">
+        <rect x="1" y="1" width="9" height="9" fill="#F35325"/>
+        <rect x="11" y="1" width="9" height="9" fill="#81BC06"/>
+        <rect x="1" y="11" width="9" height="9" fill="#05A6F0"/>
+        <rect x="11" y="11" width="9" height="9" fill="#FFBA08"/>
+      </svg>
+      Entrar
+    </a>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar"></div></div>
+</div>
+
+<div class="screens-wrap">
+
+  <!-- SCREEN 0: KANBAN -->
+  <div class="screen active" id="screen-0">
+    <div class="page-header">
+      <div class="page-eyebrow">Manutencao - Tempo real</div>
+      <div class="page-title">Ordens de Servico</div>
+    </div>
+    <div class="summary-bar">
+      {% set tot_a = os_por_status.get('aberta',[]) | length %}
+      {% set tot_e = os_por_status.get('em_execucao',[]) | length %}
+      {% set tot_p = os_por_status.get('aguardando_peca',[]) | length %}
+      {% set tot_c = os_por_status.get('concluida',[]) | length %}
+      <div class="sum-item sum-aberta"><div class="sum-num">{{ tot_a }}</div><div class="sum-label">Abertas</div></div>
+      <div class="sum-divider"></div>
+      <div class="sum-item sum-execucao"><div class="sum-num">{{ tot_e }}</div><div class="sum-label">Em Execucao</div></div>
+      <div class="sum-divider"></div>
+      <div class="sum-item sum-peca"><div class="sum-num">{{ tot_p }}</div><div class="sum-label">Ag. Peca</div></div>
+      <div class="sum-divider"></div>
+      <div class="sum-item sum-concluida"><div class="sum-num">{{ tot_c }}</div><div class="sum-label">Concluidas</div></div>
+    </div>
+    <div class="kanban-wrap">
+      {% for status, titulo in colunas.items() %}
+      <div class="kanban-col col-{{ status }}">
+        <div class="kanban-col-header">
+          <div class="col-title"><div class="col-dot"></div><span>{{ titulo }}</span></div>
+          <span class="col-count">{{ os_por_status[status]|length }}</span>
+        </div>
+        <div class="kanban-cards">
+          {% if os_por_status[status] %}
+            {% for o in os_por_status[status] %}
+            <div class="os-card">
+
+              <div class="os-card-head">
+                <div>
+                  <div class="os-card-placa">{{ o.veiculo.placa if o.veiculo else '---' }}</div>
+                  <div class="os-card-numero">{{ o.numero }}</div>
+                </div>
+                <span class="badge badge-{{ o.tipo_manutencao }}">{{ o.tipo_manutencao }}</span>
+              </div>
+
+              <div class="os-card-modelo">{{ (o.veiculo.descricao or o.veiculo.modelo or '---') if o.veiculo else '---' }}</div>
+
+              <div class="os-card-dates">
+                <div class="date-row">
+                  <span class="date-label">Entrada</span>
+                  <span class="date-value hot">
+                    {{ o.data_entrada.strftime('%d/%m/%Y %H:%M') if o.data_entrada else (o.data_abertura.strftime('%d/%m/%Y') if o.data_abertura else '---') }}
+                  </span>
+                </div>
+                {% if status == 'concluida' %}
+                  <div class="date-row">
+                    <span class="date-label">Conclusao</span>
+                    <span class="date-value ok">{{ o.data_conclusao.strftime('%d/%m/%Y') if o.data_conclusao else '---' }}</span>
+                  </div>
+                  {% if o.data_conclusao and o.data_abertura %}
+                  <div class="date-row">
+                    <span class="date-label">Duracao</span>
+                    <span class="date-value ok">{{ (o.data_conclusao - o.data_abertura).days }} dias</span>
+                  </div>
+                  {% endif %}
+                {% else %}
+                  {% if o.data_prevista %}
+                  <div class="date-row">
+                    <span class="date-label">Previsao</span>
+                    <span class="date-value {% if hoje and o.data_prevista < hoje %}warn{% endif %}">{{ o.data_prevista.strftime('%d/%m/%Y') }}</span>
+                  </div>
+                  {% endif %}
+                  <div class="date-row">
+                    <span class="date-label">Status</span>
+                    <span class="date-value">{{ titulo }}</span>
+                  </div>
+                {% endif %}
+              </div>
+
+              {% if status != 'concluida' and o.data_abertura and hoje %}
+                {% set dias = (hoje - o.data_abertura).days %}
+                {% if dias <= 1 %}<span class="tempo-badge t-ok">{{ dias }}d em aberto</span>
+                {% elif dias <= 3 %}<span class="tempo-badge t-alerta">{{ dias }}d em aberto</span>
+                {% else %}<span class="tempo-badge t-critico">{{ dias }}d em aberto</span>{% endif %}
+              {% endif %}
+
+              {% if o.motorista %}
+              <div class="os-card-condutor"><span>&#x1F464;</span><span class="condutor-nome">{{ o.motorista.nome }}</span></div>
+              {% endif %}
+
+              {% if o.descricao_problema %}
+              <div class="os-card-info">{{ o.descricao_problema[:90] }}{% if o.descricao_problema|length > 90 %}...{% endif %}</div>
+              {% endif %}
+
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="empty-col"><div class="empty-col-icon">&#x2705;</div>Nenhuma OS</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- SCREEN 1: FROTA -->
+  <div class="screen" id="screen-1">
+    <div class="page-header">
+      <div class="page-eyebrow">Disponibilidade - Tempo real</div>
+      <div class="page-title">Frota</div>
+    </div>
+    <div class="disp-grid" id="dispGrid"><div class="disp-loading">Carregando...</div></div>
+  </div>
+
+  <!-- SCREEN 2: INDICADORES -->
+  <div class="screen" id="screen-2">
+    <div class="page-header">
+      <div class="page-eyebrow">KPIs - Mes atual</div>
+      <div class="page-title">Indicadores</div>
+    </div>
+    <div id="indContent"><div class="loading-overlay">Carregando indicadores...</div></div>
+  </div>
+
+</div>
+
+<div class="bottom-bar">
+  <span>Sistema de Frota - Empresa Exemplo</span>
+  <span id="clockDisplay"></span>
+</div>
+
+<script>
+var SCREENS = 3;
+var INTERVAL_MS = 45000;
+var current = 0;
+var autoTimer = null;
+var progressTimer = null;
+var countdown = INTERVAL_MS;
+var dispLoaded = false;
+var indLoaded = false;
+var hoje = new Date();
+
+function goScreen(idx) {
+  var prev = document.getElementById('screen-' + current);
+  prev.classList.remove('active');
+  prev.classList.add('exit');
+  setTimeout(function() { prev.classList.remove('exit'); }, 500);
+  current = ((idx % SCREENS) + SCREENS) % SCREENS;
+  document.getElementById('screen-' + current).classList.add('active');
+  document.querySelectorAll('.screen-tab').forEach(function(t, i) {
+    t.classList.toggle('active', i === current);
+  });
+  if (current === 1 && !dispLoaded) { loadDisp(); dispLoaded = true; }
+  if (current === 2 && !indLoaded)  { loadInd();  indLoaded  = true; }
+  resetProgress();
+}
+
+function resetProgress() {
+  countdown = INTERVAL_MS;
+  var bar = document.getElementById('progressBar');
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  clearTimeout(autoTimer);
+  clearInterval(progressTimer);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      bar.style.transition = 'width ' + INTERVAL_MS + 'ms linear';
+      bar.style.width = '100%';
+    });
+  });
+  progressTimer = setInterval(function() {
+    countdown -= 1000;
+    document.getElementById('timerChip').textContent = Math.max(0, Math.round(countdown / 1000)) + 's';
+  }, 1000);
+  autoTimer = setTimeout(function() {
+    clearInterval(progressTimer);
+    goScreen(current + 1);
+  }, INTERVAL_MS);
+}
+
+function updateClock() {
+  var now = new Date();
+  var t = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  var d = now.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'});
+  document.getElementById('clockDisplay').textContent = d + ' - ' + t;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function loadDisp() {
+  var grid = document.getElementById('dispGrid');
+  grid.innerHTML = '<div class="disp-loading">Carregando frota...</div>';
+  fetch('/api/disponibilidade-publica').then(function(r) { return r.json(); }).then(function(data) {
+    var motivos = {manutencao:'Em manutencao', sem_motorista:'Sem motorista', acidente:'Acidente', vistoria:'Vistoria', reservado:'Reservado', outro:'Indisponivel'};
+    grid.innerHTML = data.map(function(v) {
+      var cls, label, icon;
+      if (v.motivo === 'reservado') { cls = 'disp-res'; label = 'Reservado'; icon = 'R'; }
+      else if (v.disponivel)        { cls = 'disp-ok';  label = 'Disponivel'; icon = 'V'; }
+      else                          { cls = 'disp-no';  label = motivos[v.motivo] || 'Indisponivel'; icon = 'X'; }
+      return '<div class="disp-card ' + cls + '">'
+        + '<div class="disp-placa">' + v.placa + '</div>'
+        + '<div class="disp-modelo">' + (v.modelo || '---') + '</div>'
+        + '<div class="disp-status-badge"><span class="disp-dot-s"></span> ' + label + '</div>'
+        + (v.municipio ? '<div class="disp-municipio">' + v.municipio + '</div>' : '')
+        + '</div>';
+    }).join('') || '<div class="disp-loading">Nenhum veiculo ativo.</div>';
+  }).catch(function() {
+    grid.innerHTML = '<div class="disp-loading" style="color:#FF3A3A">Erro ao carregar.</div>';
+  });
+}
+
+function fmtR(n) {
+  if (n >= 1000000) return 'R$ ' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return 'R$ ' + (n/1000).toFixed(1) + 'k';
+  return 'R$ ' + n.toFixed(0);
+}
+
+function loadInd() {
+  var wrap = document.getElementById('indContent');
+  fetch('/api/indicadores').then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d) {
+    renderInd(d, wrap);
+  }).catch(function(e) {
+    wrap.innerHTML = '<div class="loading-overlay" style="color:#FF3A3A">Erro ao carregar indicadores: ' + e.message + '</div>';
+  });
+}
+
+function renderInd(d, wrap) {
+  var f   = d.frota;
+  var o   = d.os;
+  var c   = d.custos;
+  var doc = d.documentos;
+  var dispPct   = f.pct_disponibilidade;
+  var dispColor = dispPct >= 80 ? 'G' : dispPct >= 60 ? 'Y' : 'R';
+  var dispLabel = dispPct >= 80 ? 'green' : dispPct >= 60 ? 'yellow' : 'red';
+
+  // KPI cards
+  var oc = d.ordens_compra || {abertas:0, valor_aberto:0};
+  var kpis = [
+    {icon:'&#x1F69B;', val:f.total,              label:'Veiculos Ativos',   sub:f.disponiveis+' disponiveis',          cls:'orange'},
+    {icon:'&#x2705;',  val:f.disponiveis,         label:'Disponiveis Agora', sub:f.em_manutencao+' em manutencao',      cls:'green'},
+    {icon:'&#x1F527;', val:f.em_manutencao,       label:'Em Manutencao',     sub:o.abertas+' OS abertas',               cls:'orange'},
+    {icon:'&#x1F4CB;', val:o.abertas_mes,         label:'OS Este Mes',       sub:o.concluidas_mes+' concluidas',        cls:'blue'},
+    {icon:'&#x1F534;', val:o.criticas,            label:'OS Criticas',       sub:'abertas ha + de 7 dias',              cls:o.criticas>0?'red':'green'},
+    {icon:'&#x26A0;',  val:doc.crlv_vencidos,     label:'CRLV Vencidos',     sub:doc.crlv_vencendo_30d+' vencem em 30d',cls:doc.crlv_vencidos>0?'red':'green'},
+    {icon:'&#x1F4B0;', val:fmtR(c.mes),           label:'Custo do Mes',      sub:fmtR(c.ano)+' no ano',                 cls:'orange', sm:true},
+    {icon:'&#x1F4E6;', val:oc.abertas,            label:'OC em Aberto',      sub:fmtR(oc.valor_aberto)+' travado',      cls:oc.abertas>10?'red':(oc.abertas>0?'orange':'green'), sm:true},
+    {icon:'&#x1F465;', val:d.motoristas,           label:'Motoristas Ativos', sub:d.reservas_pendentes+' reservas',      cls:'blue'},
+  ];
+  var kpiHtml = '<div class="ind-grid">';
+  kpis.forEach(function(k) {
+    kpiHtml += '<div class="kpi-card ' + k.cls + '">'
+      + '<div class="kpi-icon">' + k.icon + '</div>'
+      + '<div class="kpi-num ' + k.cls + (k.sm?' sm':'') + '">' + k.val + '</div>'
+      + '<div class="kpi-label">' + k.label + '</div>'
+      + (k.sub ? '<div class="kpi-sub">' + k.sub + '</div>' : '')
+      + '</div>';
+  });
+  kpiHtml += '</div>';
+
+  // MTBF / MTTR
+  var mtbf = d.os.mtbf_dias;
+  var mttr = d.os.mttr_dias;
+  var mttrColor = (mttr == null) ? 'var(--P)' : (mttr <= 3 ? 'var(--G)' : (mttr <= 7 ? 'var(--Y)' : 'var(--R)'));
+  var mtxHtml = '<div class="mtx-row">'
+    + '<div class="mtx-card mtx-mtbf">'
+      + '<div class="mtx-tag">MTBF</div>'
+      + '<div class="mtx-name">Tempo Medio Entre Falhas</div>'
+      + (mtbf != null
+          ? '<div class="mtx-num">' + mtbf + '<span class="mtx-unit"> dias</span></div><div class="mtx-desc">Dias de operacao entre ocorrencias corretivas no mes</div>'
+          : '<div class="mtx-na">Sem dados</div><div class="mtx-desc">Nenhuma OS corretiva concluida este mes</div>')
+    + '</div>'
+    + '<div class="mtx-card mtx-mttr">'
+      + '<div class="mtx-tag">MTTR</div>'
+      + '<div class="mtx-name">Tempo Medio de Reparo</div>'
+      + (mttr != null && mttr > 0
+          ? '<div class="mtx-num" style="color:' + mttrColor + '">' + mttr + '<span class="mtx-unit"> dias</span></div><div class="mtx-desc">Media de dias entre abertura e conclusao das OS do mes</div>'
+          : '<div class="mtx-na">Sem dados</div><div class="mtx-desc">Nenhuma OS concluida este mes</div>')
+    + '</div>'
+  + '</div>';
+
+  // OS por tipo
+  var totalTipo = 0;
+  Object.values(d.os_por_tipo).forEach(function(v){ totalTipo += v; });
+  if (!totalTipo) totalTipo = 1;
+  var tipoEntries = Object.entries(d.os_por_tipo).sort(function(a,b){ return b[1]-a[1]; });
+  var tipoHtml = tipoEntries.length ? tipoEntries.map(function(e) {
+    return '<div class="tipo-bar-row">'
+      + '<div class="tipo-label">' + e[0] + '</div>'
+      + '<div class="tipo-bar-bg"><div class="tipo-bar-fill tipo-' + e[0] + '" style="width:' + Math.round(e[1]/totalTipo*100) + '%"></div></div>'
+      + '<div class="tipo-num">' + e[1] + '</div></div>';
+  }).join('') : '<div class="kpi-sub">Sem dados</div>';
+
+  // Top veiculos (por custo acumulado no mes)
+  var maxCusto = d.top_veiculos.length ? d.top_veiculos[0].custo : 1;
+  if (!maxCusto) maxCusto = 1;
+  var topHtml = d.top_veiculos.length ? d.top_veiculos.map(function(v, i) {
+    return '<div class="top-veic-row">'
+      + '<div class="top-veic-rank">' + (i+1) + '</div>'
+      + '<div class="top-veic-placa">' + v.placa + '</div>'
+      + '<div class="top-veic-bar-bg"><div class="top-veic-bar-fill" style="width:' + Math.round(v.custo/maxCusto*100) + '%"></div></div>'
+      + '<div class="top-veic-num">' + fmtR(v.custo) + '</div></div>';
+  }).join('') : '<div class="kpi-sub">Sem dados</div>';
+
+  // Gauge
+  var gaugeHtml = '<div class="gauge-wrap">'
+    + '<div class="gauge-big" style="color:var(--' + dispColor + ')">' + dispPct + '<span class="gauge-unit">%</span></div>'
+    + '<div class="gauge-label">Disponibilidade do mes</div>'
+    + '<div class="gauge-bar-wrap"><div class="gauge-bar-fill" style="width:' + dispPct + '%;background:var(--' + dispColor + ')"></div></div>'
+    + '</div>';
+
+  var row2Html = '<div class="ind-row2">'
+    + '<div class="wide-card"><div class="wide-title">OS por Tipo - Mes</div><div class="tipo-bars">' + tipoHtml + '</div></div>'
+    + '<div class="wide-card"><div class="wide-title">Top Veiculos por Custo - Mes</div><div class="top-veic-list">' + topHtml + '</div></div>'
+    + '<div class="wide-card">' + gaugeHtml + '</div>'
+    + '</div>';
+
+  wrap.innerHTML = kpiHtml + mtxHtml + row2Html;
+}
+
+resetProgress();
+setTimeout(function() { location.reload(); }, 5 * 60 * 1000);
+</script>
+
+<!-- BOTÃO RESERVAR FIXO NO MOBILE (retrato) -->
+<a href="/reservar" class="reservar-fab" id="reservarFab">
+  🚗 Reservar Veículo
+</a>
+<style>
+.reservar-fab{
+  display:none;
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--o);color:#000;
+  font-family:var(--fd);font-size:13px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;
+  padding:13px 32px;border-radius:50px;
+  text-decoration:none;
+  box-shadow:0 6px 28px rgba(247,147,30,0.50);
+  z-index:500;
+  white-space:nowrap;
+  transition:transform .15s,box-shadow .15s;
+}
+.reservar-fab:hover{transform:translateX(-50%) translateY(-2px);box-shadow:0 8px 36px rgba(247,147,30,0.65)}
+@media(max-width:520px){
+  .reservar-fab{display:flex;align-items:center;gap:8px}
+}
+</style>
+
+</body>
+</html>

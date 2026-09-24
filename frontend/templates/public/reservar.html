@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reservar Veículo — Empresa Exemplo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#F7931E;--orange-soft:rgba(247,147,30,0.08);--orange-border:rgba(247,147,30,0.30);
+  --bg:#060709;--bg-surface:#0A0C10;--bg-card:#0F1117;--bg-elevated:#141820;--bg-input:#0C0E14;
+  --border:rgba(255,255,255,0.07);--border-strong:rgba(255,255,255,0.12);
+  --text:#EEEEF8;--text-sec:#6868A0;--text-dim:#3A3A58;
+  --verde:#00E88A;--vermelho:#FF3A3A;
+  --font:'Inter',system-ui,sans-serif;
+  --font-display:'Rajdhani',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --shadow-focus:0 0 0 3px rgba(247,147,30,0.22);
+  /* aliases para o componente global de select pesquisável */
+  --laranja:var(--orange);--vermelho:var(--vermelho, #FF3A3A);
+  --text-primary:var(--text);--text-tertiary:var(--text-sec);
+  --border-default:var(--border);--radius-sm:8px;
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  background-image:linear-gradient(rgba(247,147,30,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(247,147,30,0.025) 1px,transparent 1px);
+  background-size:50px 50px;
+}
+body::before{content:'';position:fixed;top:-15%;right:-5%;width:600px;height:600px;background:radial-gradient(circle,rgba(247,147,30,0.07) 0%,transparent 60%);pointer-events:none;z-index:0}
+
+.topbar{
+  background:rgba(10,12,16,0.90);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);padding:0 28px;height:62px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;position:relative;
+}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--orange),rgba(247,147,30,0.2),transparent 55%)}
+.brand{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text);letter-spacing:.02em;text-transform:uppercase}
+.brand em{color:var(--orange);font-style:normal}
+.brand-sub{font-size:10px;font-weight:400;color:var(--text-sec);letter-spacing:.12em;display:block;margin-top:-2px;text-transform:uppercase}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.btn-back{display:flex;align-items:center;gap:6px;color:var(--text-sec);font-size:12px;text-decoration:none;padding:7px 14px;border-radius:9px;border:1px solid var(--border);transition:all .15s;font-family:var(--font-display);letter-spacing:.06em;text-transform:uppercase}
+.btn-back:hover{color:var(--text);border-color:var(--border-strong)}
+.btn-entrar{background:var(--orange);color:#000;padding:8px 20px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;transition:all .18s;display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-display);box-shadow:0 4px 16px rgba(247,147,30,0.25)}
+.btn-entrar:hover{background:#FF9F2F;transform:translateY(-1px)}
+
+.main{max-width:680px;margin:0 auto;padding:36px 20px 72px;position:relative;z-index:1}
+
+.page-eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:var(--orange);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.page-eyebrow::before{content:'';width:20px;height:1px;background:var(--orange);opacity:0.6}
+.page-title{font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--text);letter-spacing:-.01em;text-transform:uppercase;line-height:1;margin-bottom:8px}
+.page-sub{font-size:13px;color:var(--text-sec);line-height:1.6;margin-bottom:32px}
+
+.card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:20px;overflow:hidden;
+  position:relative;
+}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(247,147,30,0.4),rgba(247,147,30,0.1),transparent 60%)}
+
+.form-section{padding:24px 28px 0}
+.form-section:last-of-type{padding-bottom:0}
+.form-section-title{
+  font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;
+  color:var(--orange);margin-bottom:16px;padding-bottom:10px;
+  border-bottom:1px solid rgba(247,147,30,0.15);
+  font-family:var(--font-display);
+  display:flex;align-items:center;gap:8px;
+}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row.full{grid-template-columns:1fr}
+@media(max-width:500px){.form-row{grid-template-columns:1fr}}
+
+.form-group{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
+.form-group:last-child{margin-bottom:0}
+label{font-size:9.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.12em;font-family:var(--font-display)}
+label .req{color:var(--vermelho);margin-left:3px}
+
+input[type=text],input[type=email],input[type=tel],input[type=number],input[type=date],select,textarea{
+  background:var(--bg-input);border:1px solid var(--border);border-radius:11px;
+  color:var(--text);font-size:13.5px;padding:10px 14px;width:100%;outline:none;
+  transition:border-color .15s,box-shadow .15s;font-family:var(--font);
+}
+input:focus,select:focus,textarea:focus{border-color:var(--orange-border);box-shadow:var(--shadow-focus)}
+input::placeholder,textarea::placeholder{color:var(--text-dim)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23F7931E' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;cursor:pointer;-webkit-appearance:none}
+select option{background:var(--bg-elevated)}
+textarea{resize:vertical;min-height:85px;line-height:1.6}
+
+.hint{font-size:10.5px;color:var(--text-dim);margin-top:5px;letter-spacing:.02em}
+
+.form-footer{padding:24px 28px}
+.btn-submit{
+  width:100%;background:var(--orange);color:#000;border:none;
+  border-radius:12px;font-size:14px;font-weight:700;padding:15px;
+  cursor:pointer;transition:all .18s;
+  text-transform:uppercase;letter-spacing:.08em;
+  font-family:var(--font-display);
+  box-shadow:0 4px 24px rgba(247,147,30,0.30);
+  position:relative;overflow:hidden;
+}
+.btn-submit::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);transition:left .4s ease}
+.btn-submit:hover::before{left:100%}
+.btn-submit:hover{background:#FF9F2F;box-shadow:0 6px 32px rgba(247,147,30,0.50);transform:translateY(-1px)}
+
+.alert{padding:14px 20px;border-radius:12px;font-size:13.5px;margin-bottom:24px;border:1px solid}
+.alert-success{background:rgba(0,232,138,0.08);border-color:rgba(0,232,138,0.20);color:var(--verde)}
+.alert-error{background:rgba(255,58,58,0.08);border-color:rgba(255,58,58,0.20);color:var(--vermelho)}
+
+.success-block{padding:56px 28px;text-align:center}
+.success-icon{font-size:64px;margin-bottom:18px;line-height:1}
+.success-title{font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--verde);margin-bottom:10px;text-transform:uppercase;letter-spacing:.02em}
+.success-sub{font-size:14px;color:var(--text-sec);margin-bottom:28px;line-height:1.7;max-width:360px;margin-left:auto;margin-right:auto}
+.btn-nova{
+  display:inline-block;background:var(--bg-elevated);color:var(--text);
+  padding:11px 28px;border-radius:11px;font-size:12px;font-weight:700;
+  border:1px solid var(--border-strong);cursor:pointer;transition:all .15s;
+  text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-display);
+}
+.btn-nova:hover{background:var(--orange);color:#000;border-color:var(--orange)}
+
+.footer{text-align:center;font-size:10px;color:var(--text-dim);padding:20px;margin-top:20px;letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-display)}
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/searchable-select.css') }}">
+<script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="brand">Empresa <em>Exemplo</em></div>
+    <span class="brand-sub">Sistema de Frota</span>
+  </div>
+  <div class="topbar-right">
+    <a href="/" class="btn-back">← Painel de OS</a>
+    <a href="{{ url_for('auth.azure_login') }}" class="btn-entrar">
+      <svg width="13" height="13" viewBox="0 0 21 21" fill="none">
+        <rect x="1" y="1" width="9" height="9" fill="#F35325"/>
+        <rect x="11" y="1" width="9" height="9" fill="#81BC06"/>
+        <rect x="1" y="11" width="9" height="9" fill="#05A6F0"/>
+        <rect x="11" y="11" width="9" height="9" fill="#FFBA08"/>
+      </svg>
+      Entrar
+    </a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-eyebrow">Requisição de Veículo</div>
+  <div class="page-title">Reservar Veículo</div>
+  <div class="page-sub">Preencha o formulário para solicitar um veículo. Sua requisição será analisada pela equipe de frota e você receberá uma confirmação.</div>
+
+  {% if sucesso %}
+  <div class="card">
+    <div class="success-block">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Reserva Solicitada!</div>
+      <div class="success-sub">Sua requisição foi registrada com sucesso. A equipe de frota irá analisar e entrar em contato pelo canal informado.</div>
+      <button class="btn-nova" onclick="location.reload()">Nova Solicitação</button>
+    </div>
+  </div>
+  {% else %}
+
+  {% if erro %}<div class="alert alert-error">⚠️ {{ erro }}</div>{% endif %}
+
+  <div class="card">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-section">
+        <div class="form-section-title">👤 Dados do Solicitante</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nome completo <span class="req">*</span></label>
+            <input type="text" name="nome_solicitante" placeholder="Seu nome" required value="{{ request.form.get('nome_solicitante','') }}">
+          </div>
+          <div class="form-group">
+            <label>Setor / Obra</label>
+            <input type="text" name="setor_solicitante" placeholder="Ex.: Obra Tucuruí, Administrativo…" value="{{ request.form.get('setor_solicitante','') }}">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>Contato (WhatsApp ou e-mail)</label>
+            <input type="text" name="contato" placeholder="(93) 99999-9999 ou seu@email.com" value="{{ request.form.get('contato','') }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">📅 Período de Utilização</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Data de saída <span class="req">*</span></label>
+            <input type="date" name="data_inicio" required min="{{ hoje }}" value="{{ request.form.get('data_inicio','') }}">
+          </div>
+          <div class="form-group">
+            <label>Data de retorno <span class="req">*</span></label>
+            <input type="date" name="data_fim" required min="{{ hoje }}" value="{{ request.form.get('data_fim','') }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">📍 Destino e Finalidade</div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>Destino <span class="req">*</span></label>
+            <input type="text" name="destino" placeholder="Ex.: Altamira-PA, Obra Linha de Transmissão…" required value="{{ request.form.get('destino','') }}">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>Finalidade / Descrição da atividade</label>
+            <textarea name="finalidade" placeholder="Descreva brevemente o motivo da viagem ou uso do veículo…">{{ request.form.get('finalidade','') }}</textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nº de passageiros</label>
+            <input type="number" name="n_passageiros" min="1" max="20" value="{{ request.form.get('n_passageiros','1') }}">
+          </div>
+          <div class="form-group">
+            <label>Tipo de veículo preferido</label>
+            <select name="tipo_veiculo_pref">
+              <option value="">Sem preferência</option>
+              <option value="passeio" {% if request.form.get('tipo_veiculo_pref')=='passeio' %}selected{% endif %}>Passeio / SUV</option>
+              <option value="caminhonete" {% if request.form.get('tipo_veiculo_pref')=='caminhonete' %}selected{% endif %}>Caminhonete / Pickup</option>
+              <option value="van" {% if request.form.get('tipo_veiculo_pref')=='van' %}selected{% endif %}>Van / Micro-ônibus</option>
+              <option value="caminhao" {% if request.form.get('tipo_veiculo_pref')=='caminhao' %}selected{% endif %}>Caminhão</option>
+              <option value="outro" {% if request.form.get('tipo_veiculo_pref')=='outro' %}selected{% endif %}>Outro</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">🚘 Veículo Específico (Opcional)</div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>Solicitar veículo específico</label>
+            <div class="ss-wrap" data-catalog="veiculosPublic" data-hidden-name="veiculo_id"
+                 {% if request.form.get('veiculo_id') %}data-selected="{{ request.form.get('veiculo_id') }}"{% endif %}
+                 data-placeholder="Buscar por placa..."></div>
+            <div class="hint">A disponibilidade será verificada pela equipe antes da aprovação.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-footer">
+        <button type="submit" class="btn-submit">📨 Enviar Solicitação de Reserva</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="footer">Sistema de Frota — Empresa Exemplo</div>
+</div>
+
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosPublic: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '') + (' (' + v.municipio_base + ')' if v.municipio_base else '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+const ini=document.querySelector('[name=data_inicio]');
+const fim=document.querySelector('[name=data_fim]');
+if(ini&&fim){ini.addEventListener('change',()=>{if(fim.value&&fim.value<ini.value)fim.value=ini.value;fim.min=ini.value;})}
+</script>
+</body>
+</html>
