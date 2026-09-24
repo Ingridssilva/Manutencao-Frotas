@@ -1,0 +1,14 @@
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+flask-login==0.6.3
+flask-migrate==4.0.7
+flask-wtf==1.2.1
+psycopg[binary]>=3.2.0
+python-dotenv==1.0.1
+msal==1.28.0
+requests==2.32.3
+reportlab==4.2.2
+gunicorn==22.0.0
+werkzeug==3.0.3
+openpyxl==3.1.2
+flask-caching==2.3.0

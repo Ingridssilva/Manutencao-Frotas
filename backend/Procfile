@@ -1,0 +1,1 @@
+web: gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --access-logformat '%(h)s "%(r)s" %(s)s %(b)s tempo=%(L)ss'
