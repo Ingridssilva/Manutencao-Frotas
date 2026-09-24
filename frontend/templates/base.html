@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>{% block title %}Frota{% endblock %} — Empresa Exemplo</title>
+<!-- Fontes do sistema — sem requisição externa, carrega instantâneo -->
+<!-- PWA -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Frota RE">
+<meta name="theme-color" content="#F7931E">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/searchable-select.css') }}">
+<script src="{{ url_for('static', filename='js/searchable-select.js') }}" defer></script>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-pill">
+      <div class="logo-pill-dot"></div>
+      <span>Sistema de Frota</span>
+    </div>
+    <strong>Empresa <em>Exemplo</em></strong>
+    <div class="sidebar-logo-sub">Gestão de Frotas v2.0</div>
+  </div>
+
+  <nav>
+    <div class="nav-group">
+      <div class="nav-label">Principal</div>
+      <a href="{{ url_for('dashboard.index') }}" class="nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+        <span class="nav-icon">⬛</span> Dashboard
+      </a>
+      <a href="{{ url_for('veiculos.lista') }}" class="nav-item {% if request.endpoint and 'veiculos' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">🚛</span> Veículos
+      </a>
+      <a href="{{ url_for('motoristas.lista') }}" class="nav-item {% if request.endpoint and 'motoristas' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">👤</span> Motoristas
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Manutenção</div>
+      <a href="{{ url_for('os.lista') }}" class="nav-item {% if request.endpoint == 'os.lista' or request.endpoint == 'os.nova' or request.endpoint == 'os.detalhe' %}active{% endif %}">
+        <span class="nav-icon">📋</span> Ordens de Serviço
+      </a>
+      <a href="{{ url_for('os.painel') }}" class="nav-item {% if request.endpoint == 'os.painel' %}active{% endif %}">
+        <span class="nav-icon">⬜</span> Painel Kanban
+      </a>
+      <a href="{{ url_for('orcamentos.lista') }}" class="nav-item {% if request.endpoint and 'orcamento' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">📄</span> Orçamentos
+      </a>
+      <a href="{{ url_for('manutencao.lista') }}" class="nav-item {% if request.endpoint and 'manutencao' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">🔧</span> Planos Manutenção
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Operacional</div>
+      <a href="{{ url_for('disponibilidade.index') }}" class="nav-item {% if request.endpoint and 'disponibilidade' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">📊</span> Disponibilidade
+      </a>
+      <a href="{{ url_for('multas.lista') }}" class="nav-item {% if request.endpoint and 'multa' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">⚠</span> Multas
+      </a>
+      <a href="{{ url_for('checklist.lista') }}" class="nav-item {% if request.endpoint and 'checklist' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">✅</span> Checklist
+      </a>
+      <a href="{{ url_for('fluidos.lista') }}" class="nav-item {% if request.endpoint and 'fluidos' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">🛢</span> Fluidos
+      </a>
+      <a href="{{ url_for('pneus.lista') }}" class="nav-item {% if request.endpoint and 'pneus' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">⭕</span> Pneus
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Relatórios</div>
+      <a href="{{ url_for('relatorios.bi') }}" class="nav-item {% if request.endpoint == 'relatorios.bi' %}active{% endif %}">
+        <span class="nav-icon">📈</span> BI &amp; Disponibilidade
+      </a>
+      <a href="{{ url_for('relatorios.vencimentos') }}" class="nav-item {% if request.endpoint == 'relatorios.vencimentos' %}active{% endif %}">
+        <span class="nav-icon">📅</span> Vencimentos
+      </a>
+      <a href="{{ url_for('relatorios.custos') }}" class="nav-item {% if request.endpoint == 'relatorios.custos' %}active{% endif %}">
+        <span class="nav-icon">💰</span> Custos
+      </a>
+    </div>
+
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div class="nav-group">
+      <div class="nav-label">Administração</div>
+      <a href="{{ url_for('admin.catalogo') }}" class="nav-item {% if request.endpoint and 'admin' in request.endpoint and 'catalogo' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">📦</span> Catálogo
+      </a>
+      <a href="{{ url_for('admin.usuarios') }}" class="nav-item {% if request.endpoint == 'admin.usuarios' or request.endpoint == 'admin.usuario_form' %}active{% endif %}">
+        <span class="nav-icon">⚙</span> Configurações
+      </a>
+    </div>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <div class="user-avatar">{{ current_user.nome[:2].upper() }}</div>
+      <div>
+        <div class="user-name">{{ current_user.nome.split()[0] }}</div>
+        <div class="user-role">{{ current_user.perfil.nome }}</div>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Sair">⏻</a>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost btn-icon" id="sidebarToggle" style="display:none;margin-right:4px;">☰</button>
+    <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+
+    <div class="search-wrap" id="searchWrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" class="search-input" id="searchInput" placeholder="Buscar placa, motorista, OS…" autocomplete="off">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+
+    <div class="topbar-actions">
+      {% block topbar_actions %}{% endblock %}
+      {% set alertas_count = alertas_criticos if alertas_criticos is defined else 0 %}
+      {% if alertas_count > 0 %}
+        <a href="{{ url_for('dashboard.index') }}" title="{{ alertas_count }} alertas críticos">
+          <span class="badge-alerta">{{ alertas_count }}</span>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="content">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <ul class="flash-list">
+          {% for cat, msg in msgs %}
+            <li class="flash-item flash-{{ cat }}">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+<!-- BOTTOM NAV MOBILE -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <a href="{{ url_for('dashboard.index') }}" class="mobile-nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+      <span>⬛</span><span>Dashboard</span>
+    </a>
+    <a href="{{ url_for('os.lista') }}" class="mobile-nav-item {% if request.endpoint and 'os.' in request.endpoint and request.endpoint != 'os.nova' %}active{% endif %}">
+      <span>📋</span><span>OS</span>
+    </a>
+
+    <!-- SPEED-DIAL CENTRAL -->
+    <div class="mobile-speeddial" id="speedDial">
+      <div class="speeddial-menu" id="speedDialMenu">
+        <a href="{{ url_for('os.nova') }}" class="speeddial-opt">
+          <span class="speeddial-opt-icon">📋</span>
+          <span class="speeddial-opt-label">Nova OS</span>
+        </a>
+        <a href="{{ url_for('reservas.nova_reserva') }}" class="speeddial-opt">
+          <span class="speeddial-opt-icon">🚗</span>
+          <span class="speeddial-opt-label">Reservar Veículo</span>
+        </a>
+      </div>
+      <button class="mobile-nav-item speeddial-btn" id="speedDialBtn" aria-label="Novo" aria-expanded="false">
+        <span id="speedDialIcon" style="background:var(--laranja);color:#000;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin-bottom:2px;transition:transform .2s;">+</span>
+        <span>Novo</span>
+      </button>
+    </div>
+
+    <a href="{{ url_for('veiculos.lista') }}" class="mobile-nav-item {% if request.endpoint and 'veiculos' in request.endpoint %}active{% endif %}">
+      <span>🚛</span><span>Veículos</span>
+    </a>
+    <a href="{{ url_for('checklist.lista') }}" class="mobile-nav-item {% if request.endpoint and 'checklist' in request.endpoint %}active{% endif %}">
+      <span>✅</span><span>Checklist</span>
+    </a>
+  </div>
+</nav>
+
+<style>
+.mobile-speeddial{position:relative;display:flex;flex-direction:column;align-items:center}
+.speeddial-btn{background:none;border:none;cursor:pointer;color:var(--text-tertiary)}
+.speeddial-menu{
+  position:absolute;bottom:calc(100% + 12px);left:50%;
+  transform:translateX(-50%) translateY(8px);
+  display:flex;flex-direction:column;gap:8px;
+  opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;
+  z-index:210;min-width:180px;
+}
+.speeddial-menu.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+.speeddial-opt{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(18,20,28,0.97);
+  border:1px solid var(--border-default);
+  backdrop-filter:blur(20px);
+  border-radius:12px;padding:12px 16px;
+  text-decoration:none;color:var(--text-primary);
+  font-size:13px;font-weight:600;white-space:nowrap;
+  box-shadow:0 4px 24px rgba(0,0,0,0.6);
+  transition:background .15s,border-color .15s,color .15s;
+}
+.speeddial-opt:hover{background:rgba(247,147,30,0.15);border-color:var(--laranja);color:var(--laranja)}
+.speeddial-opt-icon{font-size:20px}
+.speeddial-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5)}
+.speeddial-overlay.open{display:block}
+</style>
+
+<div class="speeddial-overlay" id="speedDialOverlay"></div>
+
+<script>
+(function(){
+  const btn=document.getElementById('speedDialBtn');
+  const menu=document.getElementById('speedDialMenu');
+  const overlay=document.getElementById('speedDialOverlay');
+  const icon=document.getElementById('speedDialIcon');
+  let open=false;
+  function close(){open=false;menu.classList.remove('open');overlay.classList.remove('open');icon.style.transform='rotate(0deg)';btn.setAttribute('aria-expanded','false')}
+  function toggle(){
+    open=!open;
+    menu.classList.toggle('open',open);
+    overlay.classList.toggle('open',open);
+    icon.style.transform=open?'rotate(45deg)':'rotate(0deg)';
+    btn.setAttribute('aria-expanded',open);
+  }
+  btn.addEventListener('click',e=>{e.stopPropagation();toggle()});
+  overlay.addEventListener('click',close);
+  menu.querySelectorAll('a').forEach(a=>a.addEventListener('click',close));
+})();
+</script>
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+<script>
+(function(){
+  window.CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  window.postJSON = function(url, body){
+    return fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN},
+      body: body ? JSON.stringify(body) : undefined
+    });
+  };
+
+  // Sidebar mobile toggle
+  const sidebar = document.getElementById('sidebar');
+  const toggle  = document.getElementById('sidebarToggle');
+  function checkMobile(){
+    if(window.innerWidth <= 768){
+      toggle.style.display = 'flex';
+    } else {
+      toggle.style.display = 'none';
+      sidebar.classList.remove('open');
+    }
+  }
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
+  toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+  document.addEventListener('click', e => {
+    if(window.innerWidth <= 768 && !sidebar.contains(e.target) && e.target !== toggle){
+      sidebar.classList.remove('open');
+    }
+  });
+
+  // Search
+  const inp = document.getElementById('searchInput');
+  const res = document.getElementById('searchResults');
+  let t;
+  inp.addEventListener('input', () => {
+    clearTimeout(t);
+    const q = inp.value.trim();
+    if(q.length < 2){ res.classList.remove('open'); return; }
+    t = setTimeout(() => go(q), 250);
+  });
+  inp.addEventListener('keydown', e => {
+    if(e.key === 'Escape'){ res.classList.remove('open'); inp.blur(); }
+  });
+  document.addEventListener('click', e => {
+    if(!document.getElementById('searchWrap').contains(e.target)) res.classList.remove('open');
+  });
+
+  async function go(q){
+    try{
+      const r = await fetch('/api/busca?q=' + encodeURIComponent(q));
+      const d = await r.json();
+      render(d);
+    } catch{}
+  }
+  function render(d){
+    let h = '';
+    if(d.veiculos?.length){
+      h += '<div class="search-group"><div class="search-group-label">Veículos</div>';
+      d.veiculos.forEach(v => {
+        h += `<a class="search-result-item" href="/veiculos/${v.id}"><span class="mono" style="color:var(--laranja);font-weight:600">${v.placa}</span><span style="color:var(--text-tertiary)">${v.nome}</span></a>`;
+      });
+      h += '</div>';
+    }
+    if(d.motoristas?.length){
+      h += '<div class="search-group"><div class="search-group-label">Motoristas</div>';
+      d.motoristas.forEach(m => { h += `<a class="search-result-item" href="/motoristas/${m.id}/editar">${m.nome}</a>`; });
+      h += '</div>';
+    }
+    if(d.os?.length){
+      h += '<div class="search-group"><div class="search-group-label">Ordens de Serviço</div>';
+      d.os.forEach(o => {
+        h += `<a class="search-result-item" href="/os/${o.id}"><span class="mono" style="font-weight:600">${o.numero}</span><span style="color:var(--text-tertiary)">${o.status}</span></a>`;
+      });
+      h += '</div>';
+    }
+    if(!h) h = '<div style="padding:16px;font-size:13px;color:var(--text-tertiary);text-align:center">Nenhum resultado</div>';
+    res.innerHTML = h;
+    res.classList.add('open');
+  }
+
+  // Submit loading
+  document.addEventListener('submit', e => {
+    const b = e.target.querySelector('button[type=submit]');
+    if(b && !b.dataset.sub){
+      b.dataset.sub = '1';
+      const o = b.innerHTML;
+      b.innerHTML = '<span class="spinner"></span>';
+      b.disabled = true;
+      setTimeout(() => { b.innerHTML = o; b.disabled = false; delete b.dataset.sub; }, 8000);
+    }
+  });
+
+  // Alerts polling
+  setInterval(async () => {
+    try{
+      const r = await fetch('/api/stats');
+      const d = await r.json();
+      const ba = document.querySelector('.badge-alerta');
+      if(ba && d.alertas_criticos > 0) ba.textContent = d.alertas_criticos;
+    } catch{}
+  }, 60000);
+})();
+</script>
+{% block extra_scripts %}{% endblock %}
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
