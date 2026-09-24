@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Fluidos — {{ v.placa }}{% endblock %}
+{% block page_title %}Fluidos — {{ v.placa }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('fluidos.nova', veiculo_id=v.id) }}" class="btn btn-primary btn-sm">+ Nova troca</a>
+  <a href="{{ url_for('veiculos.detalhe', id=v.id) }}" class="btn btn-secondary btn-sm">← Veículo</a>
+{% endblock %}
+
+{% block content %}
+<!-- Cards de status por tipo -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px;">
+  {% for tipo_k, tipo_v in TIPOS.items() %}
+  {% set ultima = ultimas.get(tipo_k) %}
+  {% set st = ultima.status_alerta if ultima else 'sem_registro' %}
+  <div class="card" style="border-top:3px solid {% if st=='ok' %}var(--verde){% elif st=='atencao' %}var(--laranja){% elif st in ('critico','vencido') %}var(--vermelho){% else %}var(--cinza-100){% endif %};">
+    <div class="card-body" style="padding:14px 16px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--cinza-400);margin-bottom:6px;">{{ tipo_v }}</div>
+      {% if ultima %}
+        <div style="font-size:13px;font-weight:600;">{{ ultima.data_troca.strftime('%d/%m/%Y') }}</div>
+        <div style="font-size:12px;color:var(--cinza-500);">{{ '{:,}'.format(ultima.km_troca).replace(',','.') if ultima.km_troca else '—' }} km</div>
+        {% if ultima.km_proxima_troca %}
+        <div style="font-size:12px;margin-top:4px;color:{% if st=='vencido' %}var(--vermelho){% elif st=='critico' %}var(--vermelho){% elif st=='atencao' %}var(--laranja){% else %}var(--cinza-500){% endif %};">
+          Próx: {{ '{:,}'.format(ultima.km_proxima_troca).replace(',','.') }} km
+          {% set kr = ultima.km_restante %}
+          {% if kr is not none %}({{ kr }} restantes){% endif %}
+        </div>
+        {% endif %}
+      {% else %}
+        <div style="font-size:12px;color:var(--cinza-300);">Sem registro</div>
+      {% endif %}
+      <a href="{{ url_for('fluidos.nova', veiculo_id=v.id) }}?tipo={{ tipo_k }}" class="btn btn-secondary btn-sm" style="margin-top:10px;font-size:11px;">+ Registrar</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Histórico completo -->
+<div class="card">
+  <div class="card-header"><span class="card-title">Histórico de trocas</span></div>
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Data</th><th>Fluido</th><th>KM</th><th>Próxima</th><th>Produto</th><th>Custo</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for t in historico %}
+          <tr>
+            <td>{{ t.data_troca.strftime('%d/%m/%Y') }}</td>
+            <td>{{ t.tipo_display }}</td>
+            <td class="mono">{{ '{:,}'.format(t.km_troca).replace(',','.') if t.km_troca else '—' }}</td>
+            <td>
+              {% if t.km_proxima_troca %}<span class="mono">{{ '{:,}'.format(t.km_proxima_troca).replace(',','.') }}</span>{% endif %}
+              {% if t.proxima_data %}<div style="font-size:11px;color:var(--cinza-400);">{{ t.proxima_data.strftime('%d/%m/%Y') }}</div>{% endif %}
+              {% if not t.km_proxima_troca and not t.proxima_data %}—{% endif %}
+            </td>
+            <td>{{ t.marca_produto or '—' }} {{ t.viscosidade or '' }}</td>
+            <td>{% if t.custo %}R$ {{ '{:,.2f}'.format(t.custo).replace(',','X').replace('.', ',').replace('X','.') }}{% else %}—{% endif %}</td>
+            <td><a href="{{ url_for('fluidos.editar', id=t.id) }}" class="btn btn-secondary btn-sm btn-icon">✎</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty-state">Nenhuma troca registrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

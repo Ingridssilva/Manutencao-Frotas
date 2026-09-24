@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}{% if troca %}Editar Troca{% else %}Nova Troca de Fluido{% endif %}{% endblock %}
+{% block page_title %}{% if troca %}Editar Troca{% else %}Nova Troca de Fluido{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:760px;">
+  <div class="card-header"><span class="card-title">Dados da troca</span></div>
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label>Veículo *</label>
+          <div class="ss-wrap {% if troca %}ss-disabled{% endif %}" data-catalog="veiculosFluido" data-hidden-name="veiculo_id"
+               {% if not troca %}data-required="true"{% endif %}
+               {% if troca %}data-selected="{{ troca.veiculo_id }}"{% elif veiculo_sel %}data-selected="{{ veiculo_sel.id }}"{% endif %}
+               data-placeholder="Buscar por placa..."></div>
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de fluido *</label>
+          <select name="tipo_fluido" required>
+            <option value="">Selecione...</option>
+            {% for k,v in TIPOS.items() %}
+            <option value="{{ k }}" {% if troca and troca.tipo_fluido == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Data da troca *</label>
+          <input type="date" name="data_troca" required
+                 value="{{ troca.data_troca.strftime('%Y-%m-%d') if troca and troca.data_troca else hoje.strftime('%Y-%m-%d') }}">
+        </div>
+
+        <div class="form-group">
+          <label>KM na troca</label>
+          <input type="number" name="km_troca" min="0"
+                 value="{{ troca.km_troca if troca else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Intervalo até próxima (km)</label>
+          <input type="number" name="intervalo_km" min="0" placeholder="ex: 5000"
+                 value="{{ troca.intervalo_km if troca else 5000 }}">
+        </div>
+
+        <div class="form-group">
+          <label>Intervalo até próxima (dias)</label>
+          <input type="number" name="intervalo_dias" min="0" placeholder="ex: 180"
+                 value="{{ troca.intervalo_dias if troca else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Marca / Produto</label>
+          <input type="text" name="marca_produto" placeholder="ex: Lubrax, Mobil"
+                 value="{{ troca.marca_produto if troca else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Viscosidade</label>
+          <input type="text" name="viscosidade" placeholder="ex: 15W40, 5W30"
+                 value="{{ troca.viscosidade if troca else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Quantidade (litros)</label>
+          <input type="number" name="quantidade_litros" step="0.1" min="0"
+                 value="{{ troca.quantidade_litros if troca else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label>Custo (R$)</label>
+          <input type="number" name="custo" step="0.01" min="0"
+                 value="{{ troca.custo if troca else '' }}">
+        </div>
+
+        <div class="form-group full">
+          <label>Fornecedor / Oficina</label>
+          <div class="ss-wrap" data-catalog="fornecedoresFluido" data-hidden-name="fornecedor_id"
+               {% if troca and troca.fornecedor_id %}data-selected="{{ troca.fornecedor_id }}"{% endif %}
+               data-placeholder="Buscar fornecedor..."></div>
+        </div>
+
+        <div class="form-group full">
+          <label>Observações</label>
+          <textarea name="observacoes" rows="2">{{ troca.observacoes if troca else '' }}</textarea>
+        </div>
+
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <a href="{{ url_for('fluidos.lista') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Salvar troca</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+window.SS_CATALOGS = window.SS_CATALOGS || {};
+Object.assign(window.SS_CATALOGS, {
+  veiculosFluido: [
+    {% for v in veiculos %}
+    {id:"{{ v.id }}", nome:{{ (v.placa + ' — ' + (v.descricao or v.modelo or '')) | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  fornecedoresFluido: [
+    {% for f in fornecedores %}
+    {id:"{{ f.id }}", nome:{{ f.razao_social | tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+});
+</script>
+{% endblock %}

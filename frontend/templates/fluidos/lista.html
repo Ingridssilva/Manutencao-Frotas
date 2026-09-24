@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Controle de Fluidos{% endblock %}
+{% block page_title %}Controle de Fluidos{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('fluidos.nova') }}" class="btn btn-primary btn-sm">+ Registrar troca</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+  <form method="GET" style="display:flex;gap:8px;align-items:center;">
+    <select name="tipo" onchange="this.form.submit()" style="font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--cinza-100);">
+      <option value="">Todos os fluidos</option>
+      {% for k,v in TIPOS.items() %}
+      <option value="{{ k }}" {% if tipo==k %}selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  <span style="font-size:12px;color:var(--cinza-400);">{{ trocas.total }} registros</span>
+</div>
+
+<!-- Legenda de status -->
+<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+  <span style="font-size:12px;color:var(--cinza-500);">Status:</span>
+  <span class="badge badge-verde">● Ok</span>
+  <span class="badge badge-laranja">● Atenção</span>
+  <span class="badge badge-vermelho">● Crítico / Vencido</span>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Veículo</th>
+            <th>Fluido</th>
+            <th>Última troca</th>
+            <th>KM troca</th>
+            <th>Próxima troca</th>
+            <th>KM restante</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in trocas.items %}
+          {% set st = t.status_alerta %}
+          <tr>
+            <td>
+              <a href="{{ url_for('fluidos.veiculo', veiculo_id=t.veiculo_id) }}" style="font-weight:600;color:var(--laranja);font-family:var(--mono);">
+                {{ t.veiculo.placa }}
+              </a>
+              <div style="font-size:11px;color:var(--cinza-400);">{{ t.veiculo.descricao or t.veiculo.modelo }}</div>
+            </td>
+            <td>{{ t.tipo_display }}</td>
+            <td>{{ t.data_troca.strftime('%d/%m/%Y') }}</td>
+            <td class="mono">{{ '{:,}'.format(t.km_troca).replace(',','.') if t.km_troca else '—' }}</td>
+            <td>
+              {% if t.km_proxima_troca %}
+                <span class="mono">{{ '{:,}'.format(t.km_proxima_troca).replace(',','.') }} km</span>
+              {% endif %}
+              {% if t.proxima_data %}
+                <div style="font-size:11px;color:var(--cinza-400);">{{ t.proxima_data.strftime('%d/%m/%Y') }}</div>
+              {% endif %}
+              {% if not t.km_proxima_troca and not t.proxima_data %}—{% endif %}
+            </td>
+            <td>
+              {% set kr = t.km_restante %}
+              {% if kr is not none %}
+                <span style="font-weight:600;color:{% if kr <= 0 %}var(--vermelho){% elif kr <= 500 %}var(--laranja){% else %}var(--grafite){% endif %}">
+                  {{ '{:,}'.format(kr).replace(',','.') }} km
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if st == 'ok' %}<span class="badge badge-verde">Ok</span>
+              {% elif st == 'atencao' %}<span class="badge badge-laranja">Atenção</span>
+              {% elif st == 'critico' %}<span class="badge" style="background:#fde8e8;color:#b91c1c;">Crítico</span>
+              {% else %}<span class="badge badge-vermelho">Vencido</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('fluidos.nova', veiculo_id=t.veiculo_id) }}" class="btn btn-primary btn-sm">Nova troca</a>
+              <a href="{{ url_for('fluidos.editar', id=t.id) }}" class="btn btn-secondary btn-sm">✎</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="empty-state">Nenhuma troca registrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if trocas.pages > 1 %}
+    <div class="pagination">
+      {% for p in trocas.iter_pages() %}
+        {% if p %}<a href="?page={{ p }}&tipo={{ tipo }}" class="page-btn {% if p == trocas.page %}active{% endif %}">{{ p }}</a>
+        {% else %}<span class="page-btn">…</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
