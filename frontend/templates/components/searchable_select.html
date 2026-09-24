@@ -1,0 +1,35 @@
+{#
+  Macro do select pesquisável.
+  O catálogo (lista de {id, nome, sub?, val?, un?}) deve ser registrado
+  em window.SS_CATALOGS[catalog] via um <script> no template que chama
+  a macro — ver frontend/static/js/searchable-select.js para o formato.
+
+  Parâmetros:
+    catalog      nome do catálogo em SS_CATALOGS (ex: "veiculos")
+    name         name do input hidden enviado no form (ex: "veiculo_id")
+    selected     id pré-selecionado (edição) — string ou None
+    placeholder  texto de placeholder
+    required     True para exigir seleção
+    val_target   name de outro campo a preencher com item.val (opcional)
+    un_target    name de outro campo a preencher com item.un (opcional)
+    submit       True para dar submit no form ao selecionar/limpar (filtros)
+#}
+{% macro searchable_select(catalog, name, selected=None, placeholder='Digite para buscar...', required=False, val_target=None, un_target=None, submit=False, extra_class='') %}
+<div class="ss-wrap {{ extra_class }}" data-ss
+     data-catalog="{{ catalog }}"
+     data-hidden-name="{{ name }}"
+     {% if selected %}data-selected="{{ selected }}"{% endif %}
+     {% if required %}data-required="true"{% endif %}
+     {% if val_target %}data-val-target="{{ val_target }}"{% endif %}
+     {% if un_target %}data-un-target="{{ un_target }}"{% endif %}
+     {% if submit %}data-submit="true"{% endif %}
+     data-placeholder="{{ placeholder }}">
+  <input type="hidden" name="{{ name }}" value="{{ selected or '' }}">
+  <div class="ss-input-row">
+    <span class="ss-icon">🔍</span>
+    <input class="ss-input" type="text" autocomplete="off" placeholder="{{ placeholder }}">
+    <button type="button" class="ss-clear" tabindex="-1">×</button>
+  </div>
+  {% if required %}<div class="ss-error-msg">Campo obrigatório</div>{% endif %}
+</div>
+{% endmacro %}
